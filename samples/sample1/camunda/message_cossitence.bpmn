@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://camunda.org/examples">
+  <bpmn:collaboration id="Collaboration_Logistics">
+    <bpmn:participant id="Participant_FFW" name="货代(FFW)" processRef="Process_FFW" />
+    <bpmn:participant id="Participant_SAG" name="船代(SAG)" processRef="Process_SAG" />
+    <bpmn:messageFlow id="MessageFlow_ManifestReq" sourceRef="Participant_FFW" targetRef="Participant_SAG" name="舱单请求" />
+    <bpmn:messageFlow id="MessageFlow_EIRReq" sourceRef="Participant_FFW" targetRef="Participant_SAG" name="EIR请求" />
+    <bpmn:messageFlow id="MessageFlow_Manifest" sourceRef="Participant_SAG" targetRef="Participant_FFW" name="舱单文件" />
+    <bpmn:messageFlow id="MessageFlow_EIR" sourceRef="Participant_SAG" targetRef="Participant_FFW" name="EIR文件" />
+  </bpmn:collaboration>
+
+  <!-- 货代进程：等待并行消息（对应 mCRL2 并行同步） -->
+  <bpmn:process id="Process_FFW" isExecutable="true" name="FreightForwarder">
+    <bpmn:startEvent id="Start_FFW" name="订单开始" />
+    <bpmn:serviceTask id="Task_SendReq" name="发送舱单+EIR请求" />
+    <bpmn:parallelGateway id="Gateway_Parallel_Receive" name="等待双消息" />
+    <bpmn:messageEventDefinition id="MsgDef_Manifest" />
+    <bpmn:messageEventDefinition id="MsgDef_EIR" />
+    <bpmn:receiveTask id="Recv_Manifest" name="接收舱单" messageRef="Message_Manifest" />
+    <bpmn:receiveTask id="Recv_EIR" name="接收EIR" messageRef="Message_EIR" />
+    <bpmn:endEvent id="End_FFW" name="消息一致完成" />
+
+    <bpmn:sequenceFlow sourceRef="Start_FFW" targetRef="Task_SendReq" />
+    <bpmn:sequenceFlow sourceRef="Task_SendReq" targetRef="Gateway_Parallel_Receive" />
+    <bpmn:sequenceFlow sourceRef="Gateway_Parallel_Receive" targetRef="Recv_Manifest" />
+    <bpmn:sequenceFlow sourceRef="Gateway_Parallel_Receive" targetRef="Recv_EIR" />
+    <bpmn:sequenceFlow sourceRef="Recv_Manifest" targetRef="Gateway_Join" />
+    <bpmn:sequenceFlow sourceRef="Recv_EIR" targetRef="Gateway_Join" />
+    <bpmn:parallelGateway id="Gateway_Join" name="消息汇聚" />
+    <bpmn:sequenceFlow sourceRef="Gateway_Join" targetRef="End_FFW" />
+  </bpmn:process>
+
+  <!-- 船代进程：并行发送两条消息（对应 mCRL2 并行网关隐藏） -->
+  <bpmn:process id="Process_SAG" isExecutable="true" name="ShippingAgency">
+    <bpmn:startEvent id="Start_SAG" />
+    <bpmn:receiveTask id="Recv_Req" name="接收请求" />
+    <bpmn:parallelGateway id="Gateway_Send_Parallel" />
+    <bpmn:sendTask id="Send_Manifest" name="发送舱单" messageRef="Message_Manifest" />
+    <bpmn:sendTask id="Send_EIR" name="发送EIR" messageRef="Message_EIR" />
+    <bpmn:endEvent id="End_SAG" />
+
+    <bpmn:sequenceFlow sourceRef="Start_SAG" targetRef="Recv_Req" />
+    <bpmn:sequenceFlow sourceRef="Recv_Req" targetRef="Gateway_Send_Parallel" />
+    <bpmn:sequenceFlow sourceRef="Gateway_Send_Parallel" targetRef="Send_Manifest" />
+    <bpmn:sequenceFlow sourceRef="Gateway_Send_Parallel" targetRef="Send_EIR" />
+    <bpmn:sequenceFlow sourceRef="Send_Manifest" targetRef="End_SAG" />
+    <bpmn:sequenceFlow sourceRef="Send_EIR" targetRef="End_SAG" />
+  </bpmn:process>
+
+  <!-- 消息定义 -->
+  <bpmn:message id="Message_Manifest" name="Manifest" />
+  <bpmn:message id="Message_EIR" name="EIR" />
+
+  <!-- 布局信息 -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Logistics">
+      <bpmndi:BPMNShape id="Participant_FFW_di" bpmnElement="Participant_FFW">
+        <dc:Bounds x="100" y="50" width="350" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_SAG_di" bpmnElement="Participant_SAG">
+        <dc:Bounds x="550" y="50" width="350" height="250" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
