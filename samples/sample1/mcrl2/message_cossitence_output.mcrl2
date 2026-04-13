@@ -1,0 +1,22 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act 
+  c_send_eir, c_send_manifest, c_send_request, c_start_gw_1, c_start_gw_2, c_sync_join_1, c_sync_join_2, endevent_1, endevent_2, r_send_eir, r_send_manifest, r_send_request, r_start_gw_1, r_start_gw_2, r_sync_join_1, r_sync_join_2, s_send_eir, s_send_manifest, s_send_request, s_start_gw_1, s_start_gw_2, s_sync_1_0, s_sync_1_1, s_sync_2_0, s_sync_2_1 : OrderId;
+
+proc 
+  process_ffw(oid: OrderId) = s_send_request(oid) . s_start_gw_1(oid) . delta;
+  process_sag(oid: OrderId) = r_send_request(oid) . s_start_gw_2(oid) . delta;
+  gw_1_branch_0(oid: OrderId) = r_start_gw_1(oid) . r_send_manifest(oid) . s_sync_1_0(oid) . delta;
+  gw_1_branch_1(oid: OrderId) = r_start_gw_1(oid) . r_send_eir(oid) . s_sync_1_1(oid) . delta;
+  gw_1_handler(oid: OrderId) = r_sync_join_1(oid) . endevent_1(oid);
+  gw_2_branch_0(oid: OrderId) = r_start_gw_2(oid) . s_send_manifest(oid) . s_sync_2_0(oid) . delta;
+  gw_2_branch_1(oid: OrderId) = r_start_gw_2(oid) . s_send_eir(oid) . s_sync_2_1(oid) . delta;
+  gw_2_handler(oid: OrderId) = r_sync_join_2(oid) . endevent_2(oid);
+
+init 
+  allow({c_send_eir, c_send_manifest, c_send_request, c_start_gw_1, c_start_gw_2, c_sync_join_1, c_sync_join_2, endevent_1, endevent_2},
+    comm({s_send_request | r_send_request -> c_send_request, s_send_manifest | r_send_manifest -> c_send_manifest, s_send_eir | r_send_eir -> c_send_eir, s_start_gw_1 | r_start_gw_1 | r_start_gw_1 -> c_start_gw_1, s_sync_1_0 | s_sync_1_1 | r_sync_join_1 -> c_sync_join_1, s_start_gw_2 | r_start_gw_2 | r_start_gw_2 -> c_start_gw_2, s_sync_2_0 | s_sync_2_1 | r_sync_join_2 -> c_sync_join_2},
+      gw_1_branch_0(order_id(1)) || gw_1_branch_1(order_id(1)) || gw_1_handler(order_id(1)) || process_ffw(order_id(1)) || gw_2_branch_0(order_id(1)) || gw_2_branch_1(order_id(1)) || gw_2_handler(order_id(1)) || process_sag(order_id(1))
+    )
+  );
