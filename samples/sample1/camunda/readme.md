@@ -1,13 +1,10 @@
 # 消息一致性建模 - Camunda BPMN 模型说明
 
-并发理论课程大作业 | 第四部分：消息一致性验证
-
 ## 模型基本信息
 
 - 文件名：`message_consistency.bpmn`
 - 建模工具：Camunda Modeler 5.44+
 - 适用场景：跨组织物流协作消息交互、消息同步一致性验证
-- 可直接用于：Camunda 部署、bpmn2mcrl2 转换、mCRL2 消息一致性验证
 
 ## 参与方命名规范（严格遵循课程要求）
 
