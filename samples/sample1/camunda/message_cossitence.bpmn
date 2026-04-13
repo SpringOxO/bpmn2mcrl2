@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://camunda.org/examples">
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://camunda.org/examples" exporter="Camunda Modeler" exporterVersion="5.44.0">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_FFW" name="Freight Forwarder (FFW)" processRef="Process_FFW" />
     <bpmn:participant id="Participant_SAG" name="Shipping Agency (SAG)" processRef="Process_SAG" />
-    <bpmn:messageFlow id="MessageFlow_1" sourceRef="Participant_FFW" targetRef="Participant_SAG" name="Send_Request" />
-    <bpmn:messageFlow id="MessageFlow_2" sourceRef="Participant_SAG" targetRef="Participant_FFW" name="Send_Manifest" />
-    <bpmn:messageFlow id="MessageFlow_3" sourceRef="Participant_SAG" targetRef="Participant_FFW" name="Send_EIR" />
+    <bpmn:messageFlow id="MessageFlow_1" name="Send_Request" sourceRef="Task_FFW_Send" targetRef="ReceiveTask_3" />
+    <bpmn:messageFlow id="MessageFlow_2" name="Send_Manifest" sourceRef="Task_SAG_Send1" targetRef="ReceiveTask_1" />
+    <bpmn:messageFlow id="MessageFlow_3" name="Send_EIR" sourceRef="Task_SAG_Send2" targetRef="ReceiveTask_2" />
   </bpmn:collaboration>
   <bpmn:process id="Process_FFW" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" />
@@ -39,128 +39,140 @@
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
-      <bpmndi:BPMNShape id="BPMNShape_Participant_FFW" bpmnElement="Participant_FFW">
-        <dc:Bounds x="100" y="50" width="350" height="230" />
+      <bpmndi:BPMNShape id="BPMNShape_Participant_FFW" bpmnElement="Participant_FFW" isHorizontal="true">
+        <dc:Bounds x="160" y="50" width="350" height="230" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_StartEvent_1" bpmnElement="StartEvent_1">
-        <dc:Bounds x="150" y="100" width="36" height="36" />
+        <dc:Bounds x="210" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_Task_FFW_Send" bpmnElement="Task_FFW_Send">
-        <dc:Bounds x="220" y="88" width="120" height="60" />
+        <dc:Bounds x="280" y="88" width="120" height="60" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_ParallelGateway_1" bpmnElement="ParallelGateway_1">
-        <dc:Bounds x="370" y="93" width="50" height="50" />
+        <dc:Bounds x="430" y="93" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="416" y="143" width="78" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_ReceiveTask_1" bpmnElement="ReceiveTask_1">
-        <dc:Bounds x="450" y="40" width="100" height="60" />
+        <dc:Bounds x="510" y="40" width="100" height="60" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_ReceiveTask_2" bpmnElement="ReceiveTask_2">
-        <dc:Bounds x="450" y="140" width="100" height="60" />
+        <dc:Bounds x="510" y="140" width="100" height="60" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_ParallelGateway_2" bpmnElement="ParallelGateway_2">
-        <dc:Bounds x="580" y="93" width="50" height="50" />
+        <dc:Bounds x="640" y="93" width="50" height="50" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_EndEvent_1" bpmnElement="EndEvent_1">
-        <dc:Bounds x="670" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_Participant_SAG" bpmnElement="Participant_SAG">
-        <dc:Bounds x="500" y="350" width="350" height="230" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_StartEvent_2" bpmnElement="StartEvent_2">
-        <dc:Bounds x="550" y="400" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_ReceiveTask_3" bpmnElement="ReceiveTask_3">
-        <dc:Bounds x="620" y="388" width="100" height="60" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_ParallelGateway_3" bpmnElement="ParallelGateway_3">
-        <dc:Bounds x="750" y="393" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_Task_SAG_Send1" bpmnElement="Task_SAG_Send1">
-        <dc:Bounds x="830" y="340" width="100" height="60" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_Task_SAG_Send2" bpmnElement="Task_SAG_Send2">
-        <dc:Bounds x="830" y="440" width="100" height="60" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_EndEvent_2" bpmnElement="EndEvent_2">
-        <dc:Bounds x="960" y="400" width="36" height="36" />
+        <dc:Bounds x="730" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_1" bpmnElement="SequenceFlow_1">
-        <di:waypoint x="186" y="118" />
-        <di:waypoint x="220" y="118" />
+        <di:waypoint x="246" y="118" />
+        <di:waypoint x="280" y="118" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_2" bpmnElement="SequenceFlow_2">
-        <di:waypoint x="340" y="118" />
-        <di:waypoint x="370" y="118" />
+        <di:waypoint x="400" y="118" />
+        <di:waypoint x="430" y="118" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_3" bpmnElement="SequenceFlow_3">
-        <di:waypoint x="395" y="93" />
-        <di:waypoint x="395" y="70" />
-        <di:waypoint x="450" y="70" />
+        <di:waypoint x="455" y="93" />
+        <di:waypoint x="455" y="70" />
+        <di:waypoint x="510" y="70" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_4" bpmnElement="SequenceFlow_4">
-        <di:waypoint x="395" y="143" />
-        <di:waypoint x="395" y="170" />
-        <di:waypoint x="450" y="170" />
+        <di:waypoint x="455" y="143" />
+        <di:waypoint x="455" y="170" />
+        <di:waypoint x="510" y="170" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_5" bpmnElement="SequenceFlow_5">
-        <di:waypoint x="550" y="70" />
-        <di:waypoint x="580" y="70" />
-        <di:waypoint x="580" y="93" />
+        <di:waypoint x="610" y="70" />
+        <di:waypoint x="640" y="70" />
+        <di:waypoint x="640" y="93" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_6" bpmnElement="SequenceFlow_6">
-        <di:waypoint x="550" y="170" />
-        <di:waypoint x="580" y="170" />
-        <di:waypoint x="580" y="143" />
+        <di:waypoint x="610" y="170" />
+        <di:waypoint x="640" y="170" />
+        <di:waypoint x="640" y="143" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_7" bpmnElement="SequenceFlow_7">
-        <di:waypoint x="630" y="118" />
-        <di:waypoint x="670" y="118" />
+        <di:waypoint x="690" y="118" />
+        <di:waypoint x="730" y="118" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BPMNShape_Participant_SAG" bpmnElement="Participant_SAG" isHorizontal="true">
+        <dc:Bounds x="560" y="350" width="350" height="230" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_StartEvent_2" bpmnElement="StartEvent_2">
+        <dc:Bounds x="610" y="400" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_ReceiveTask_3" bpmnElement="ReceiveTask_3">
+        <dc:Bounds x="680" y="388" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_ParallelGateway_3" bpmnElement="ParallelGateway_3">
+        <dc:Bounds x="810" y="393" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_SAG_Send1" bpmnElement="Task_SAG_Send1">
+        <dc:Bounds x="890" y="340" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_SAG_Send2" bpmnElement="Task_SAG_Send2">
+        <dc:Bounds x="890" y="440" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_EndEvent_2" bpmnElement="EndEvent_2">
+        <dc:Bounds x="1020" y="400" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_8" bpmnElement="SequenceFlow_8">
-        <di:waypoint x="586" y="418" />
-        <di:waypoint x="620" y="418" />
+        <di:waypoint x="646" y="418" />
+        <di:waypoint x="680" y="418" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_9" bpmnElement="SequenceFlow_9">
-        <di:waypoint x="720" y="418" />
-        <di:waypoint x="750" y="418" />
+        <di:waypoint x="780" y="418" />
+        <di:waypoint x="810" y="418" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_10" bpmnElement="SequenceFlow_10">
-        <di:waypoint x="775" y="393" />
-        <di:waypoint x="775" y="370" />
-        <di:waypoint x="830" y="370" />
+        <di:waypoint x="835" y="393" />
+        <di:waypoint x="835" y="370" />
+        <di:waypoint x="890" y="370" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_11" bpmnElement="SequenceFlow_11">
-        <di:waypoint x="775" y="443" />
-        <di:waypoint x="775" y="470" />
-        <di:waypoint x="830" y="470" />
+        <di:waypoint x="835" y="443" />
+        <di:waypoint x="835" y="470" />
+        <di:waypoint x="890" y="470" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_12" bpmnElement="SequenceFlow_12">
-        <di:waypoint x="930" y="370" />
-        <di:waypoint x="960" y="370" />
-        <di:waypoint x="960" y="400" />
+        <di:waypoint x="990" y="370" />
+        <di:waypoint x="1020" y="370" />
+        <di:waypoint x="1020" y="400" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_SequenceFlow_13" bpmnElement="SequenceFlow_13">
-        <di:waypoint x="930" y="470" />
-        <di:waypoint x="960" y="470" />
-        <di:waypoint x="960" y="436" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="BPMNEdge_MessageFlow_1" bpmnElement="MessageFlow_1">
-        <di:waypoint x="280" y="148" />
-        <di:waypoint x="280" y="250" />
-        <di:waypoint x="670" y="250" />
-        <di:waypoint x="670" y="388" />
+        <di:waypoint x="990" y="470" />
+        <di:waypoint x="1020" y="470" />
+        <di:waypoint x="1020" y="436" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_MessageFlow_2" bpmnElement="MessageFlow_2">
-        <di:waypoint x="880" y="340" />
-        <di:waypoint x="880" y="200" />
-        <di:waypoint x="500" y="200" />
-        <di:waypoint x="500" y="40" />
+        <di:waypoint x="960" y="340" />
+        <di:waypoint x="960" y="200" />
+        <di:waypoint x="560" y="200" />
+        <di:waypoint x="560" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="723" y="175" width="74" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_MessageFlow_3" bpmnElement="MessageFlow_3">
-        <di:waypoint x="880" y="500" />
-        <di:waypoint x="880" y="280" />
-        <di:waypoint x="500" y="280" />
-        <di:waypoint x="500" y="200" />
+        <di:waypoint x="940" y="440" />
+        <di:waypoint x="940" y="280" />
+        <di:waypoint x="550" y="280" />
+        <di:waypoint x="550" y="200" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="720" y="255" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_MessageFlow_1" bpmnElement="MessageFlow_1">
+        <di:waypoint x="340" y="148" />
+        <di:waypoint x="340" y="250" />
+        <di:waypoint x="730" y="250" />
+        <di:waypoint x="730" y="388" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="498" y="225" width="74" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
