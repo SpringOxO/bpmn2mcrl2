@@ -1,0 +1,14 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act 
+  archive_invoice, boundary_archive_invoice, create_invoice, endevent_00asnpf, endevent_036eexy, endevent_0q2wrcp, start_order_received : OrderId;
+
+proc 
+  order_process(oid: OrderId) = start_order_received(oid) . (create_invoice(oid) . endevent_036eexy(oid) . endevent_00asnpf(oid) + boundary_archive_invoice(oid) . archive_invoice(oid) . endevent_0q2wrcp(oid));
+
+
+init 
+  allow({archive_invoice, boundary_archive_invoice, create_invoice, endevent_00asnpf, endevent_036eexy, endevent_0q2wrcp, start_order_received},
+    order_process(order_id(1))
+  );
