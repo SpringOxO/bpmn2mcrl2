@@ -44,6 +44,12 @@ def clean_name(name):
     return clean if clean else "action"
 
 
+def camel_to_snake(name):
+    name = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
+    name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    return clean_name(name)
+
+
 def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     print(f"正在解析 BPMN 协作模型: {bpmn_filepath} ...")
     tree = ET.parse(bpmn_filepath)
@@ -96,6 +102,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             "flow_names": {},
             "subprocesses": {},
             "boundary_events": {},
+            "boundary_details": {},
             "event_definitions": {},
         }
 
@@ -120,6 +127,17 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                     attached_to = elem.attrib.get("attachedToRef")
                     if attached_to:
                         ctx["boundary_events"].setdefault(attached_to, []).append(eid)
+                    condition_texts = [
+                        (condition.text or "").strip()
+                        for condition in elem.findall(".//bpmn:condition", ns)
+                        if (condition.text or "").strip()
+                    ]
+                    ctx["boundary_details"][eid] = {
+                        "attached_to": attached_to,
+                        "cancel_activity": elem.attrib.get("cancelActivity", "true") != "false",
+                        "condition_texts": condition_texts,
+                        "is_conditional": "conditionalEventDefinition" in ctx["event_definitions"][eid],
+                    }
 
             elif tag == "sequenceFlow":
                 src = elem.attrib.get("sourceRef")
@@ -255,6 +273,52 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
 
         return ""
 
+    def condition_flag(condition_text):
+        match = re.search(r"\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*null\s*\}", condition_text or "")
+        if match:
+            return f"{camel_to_snake(match.group(1))}_present"
+        return f"{clean_name(condition_text or 'condition')}_satisfied"
+
+    def condition_base_token(flag_name):
+        if flag_name.endswith("_id_present"):
+            return flag_name[:-len("_id_present")]
+        if flag_name.endswith("_present"):
+            return flag_name[:-len("_present")]
+        if flag_name.endswith("_satisfied"):
+            return flag_name[:-len("_satisfied")]
+        return flag_name
+
+    def boundary_condition_flags(boundary_ids, ctx):
+        flags = []
+        seen = set()
+        for boundary_id in boundary_ids:
+            detail = ctx["boundary_details"].get(boundary_id, {})
+            if not detail.get("is_conditional"):
+                continue
+            condition_texts = detail.get("condition_texts") or [ctx["nodes"].get(boundary_id, boundary_id)]
+            for text in condition_texts:
+                flag = condition_flag(text)
+                if flag not in seen:
+                    seen.add(flag)
+                    flags.append(flag)
+        return flags
+
+    def updated_condition_values(action_name, values):
+        updated = dict(values)
+        for flag_name, value in values.items():
+            token = condition_base_token(flag_name)
+            if token and token in action_name:
+                updated[flag_name] = "true"
+        return updated
+
+    def bool_guard(parts):
+        filtered = [part for part in parts if part]
+        if not filtered:
+            return "true"
+        if len(filtered) == 1:
+            return filtered[0]
+        return " && ".join(f"({part})" for part in filtered)
+
     def build_start_scope(ctx, current_proc_id, visited=None):
         starts = ctx["starts"]
         if not starts:
@@ -289,6 +353,98 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             ))
         return choice(alternatives)
 
+    def build_conditional_boundary_activity(node_id, inner_ctx, parent_ctx, current_proc_id, stop_node, visited):
+        boundary_ids = [
+            boundary_id
+            for boundary_id in parent_ctx["boundary_events"].get(node_id, [])
+            if parent_ctx["boundary_details"].get(boundary_id, {}).get("is_conditional")
+        ]
+        flags = boundary_condition_flags(boundary_ids, parent_ctx)
+        proc_name = f"{clean_name(node_id)}_lifecycle"
+        flag_params = ", ".join(f"{flag}: Bool" for flag in flags)
+        params = f"oid: OrderId, active: Bool"
+        if flag_params:
+            params = f"{params}, {flag_params}"
+
+        parent_tail = choice([
+            build_expr(n, parent_ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
+            for n in first_successors(node_id, parent_ctx)
+        ])
+
+        def boundary_guard(boundary_id, values):
+            detail = parent_ctx["boundary_details"].get(boundary_id, {})
+            condition_texts = detail.get("condition_texts") or [parent_ctx["nodes"].get(boundary_id, boundary_id)]
+            condition_flags = [condition_flag(text) for text in condition_texts]
+            return bool_guard(["active"] + [values.get(flag, flag) for flag in condition_flags])
+
+        def wrap_conditional_boundaries(normal_expr, values):
+            alternatives = [normal_expr]
+            for boundary_id in reversed(boundary_ids):
+                detail = parent_ctx["boundary_details"].get(boundary_id, {})
+                if not detail.get("cancel_activity", True):
+                    continue
+                boundary_expr = build_boundary_expr(
+                    boundary_id,
+                    parent_ctx,
+                    current_proc_id,
+                    stop_node=stop_node,
+                    visited=set(visited),
+                )
+                guard = boundary_guard(boundary_id, values)
+                alternatives.append(f"({guard}) -> ({boundary_expr}) <> delta")
+            return choice(alternatives)
+
+        def inner_successors_expr(current_id, values, current_visited):
+            tails = [
+                build_inner_expr(n, values, set(current_visited))
+                for n in first_successors(current_id, inner_ctx)
+            ]
+            return choice(tails)
+
+        def build_inner_expr(current_id, values, current_visited):
+            if not current_id:
+                return "delta"
+            if current_id in current_visited:
+                return "delta"
+
+            current_visited.add(current_id)
+            ntype = inner_ctx["types"].get(current_id)
+
+            if ntype == "startEvent":
+                return wrap_conditional_boundaries(
+                    inner_successors_expr(current_id, values, current_visited),
+                    values,
+                )
+
+            if ntype == "endEvent":
+                after_end = wrap_conditional_boundaries(parent_tail, values)
+                normal = seq([make_node_action(current_id, inner_ctx, current_proc_id), after_end])
+                return wrap_conditional_boundaries(normal, values)
+
+            if ntype == "exclusiveGateway" and len(first_successors(current_id, inner_ctx)) > 1:
+                branches = [
+                    seq(["tau", build_inner_expr(n, values, set(current_visited))])
+                    for n in first_successors(current_id, inner_ctx)
+                ]
+                return wrap_conditional_boundaries(choice(branches), values)
+
+            action_expr = make_node_action(current_id, inner_ctx, current_proc_id)
+            raw_name = inner_ctx["nodes"].get(current_id, current_id)
+            action_name = clean_name(raw_name if raw_name else current_id)
+            next_values = updated_condition_values(action_name, values)
+            normal = seq([action_expr, inner_successors_expr(current_id, next_values, current_visited)])
+            return wrap_conditional_boundaries(normal, values)
+
+        initial_values = {flag: flag for flag in flags}
+        body = choice([
+            build_inner_expr(start, initial_values, set())
+            for start in inner_ctx["starts"]
+        ]) if inner_ctx else "delta"
+        sync_state["extra_procs"].append(f"  {proc_name}({params}) = {body};")
+
+        initial_args = ["oid", "true"] + ["false" for _ in flags]
+        return f"{proc_name}({', '.join(initial_args)})"
+
     def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None):
         if not node_id or node_id == stop_node:
             return ""
@@ -303,6 +459,20 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
 
         if ntype == "subProcess":
             inner_ctx = ctx["subprocesses"].get(node_id)
+            conditional_boundary_ids = [
+                boundary_id
+                for boundary_id in ctx["boundary_events"].get(node_id, [])
+                if ctx["boundary_details"].get(boundary_id, {}).get("is_conditional")
+            ]
+            if conditional_boundary_ids:
+                return build_conditional_boundary_activity(
+                    node_id,
+                    inner_ctx,
+                    ctx,
+                    current_proc_id,
+                    stop_node,
+                    visited,
+                )
             sub_logic = build_start_scope(inner_ctx, current_proc_id, visited) if inner_ctx else "delta"
             tail = choice([
                 build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
