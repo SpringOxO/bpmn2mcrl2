@@ -22,10 +22,15 @@
 | --- | --- | --- | --- |
 | **基础流** | `bpmn:sequenceFlow` | 顺序操作符 `.` | 已完成 |
 | **原子动作** | `bpmn:serviceTask` | `act` 声明 + 动作名 | 已完成 |
-| **排他网关** | `bpmn:exclusiveGateway` | 选择操作符 `+` (配合 `tau`) | 开发中 |
-| **并行网关** | `bpmn:parallelGateway` | 进程拆分 | 已完成 |
+| **排他网关** | `bpmn:exclusiveGateway` | 选择操作符 `+` (配合 `tau`) | 已完成 |
+| **并行网关** | `bpmn:parallelGateway` | 并行操作符 `||` | 已完成 |
 | **跨组织同步** | `bpmn:messageFlow` | `comm` 规则 + `allow` 过滤 | 已完成 |
+| **开始符号** | `bpmn:startEvent` | 普通event | 已完成 |
 | **终止符号** | `bpmn:endEvent` | `delta` (或进程结束) | 已完成 |
+| **用户任务** | `bpmn:userTask` | 一般task处理 | 已完成 |
+| **边界事件** | `bpmn:boundaryEvent` | 普通event | 已完成 |
+| **定时器定义** | `bpmn:timeEventDefinition` | 普通event - 待完善 | 开发中 |
+| **子流程** | `bpmn:subprocess` | 递归 | 已完成 |
 
 ## 使用方法
 
