@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Pizza_Perfect" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.13.2">
+  <bpmn:collaboration id="Collaboration_Pizza">
+    <bpmn:participant id="Participant_Customer" name="Pizza Customer" processRef="Process_Customer" />
+    <bpmn:participant id="Participant_Vendor" name="Pizza vendor" processRef="Process_Vendor" />
+    <bpmn:messageFlow id="MessageFlow_Order" name="pizza order" sourceRef="Task_OrderPizza" targetRef="StartEvent_Vendor" messageRef="Msg_Order" />
+    <bpmn:messageFlow id="MessageFlow_Ask" sourceRef="Task_AskPizza" targetRef="CatchEvent_WhereIsMyPizza" />
+    <bpmn:messageFlow id="MessageFlow_CalmResponse" sourceRef="Task_CalmCustomer" targetRef="Task_AskPizza" />
+    <bpmn:messageFlow id="MessageFlow_PizzaDelivered" name="pizza" sourceRef="Task_DeliverPizza" targetRef="CatchEvent_PizzaReceived" messageRef="Msg_Pizza" />
+    <bpmn:messageFlow id="MessageFlow_Money" name="money" sourceRef="Task_PayPizza" targetRef="Task_ReceivePayment" messageRef="Msg_Money" />
+    <bpmn:messageFlow id="MessageFlow_Receipt" name="receipt" sourceRef="Task_ReceivePayment" targetRef="Task_PayPizza" messageRef="Msg_Receipt" />
+  </bpmn:collaboration>
+  <bpmn:message id="Msg_Order" />
+  <bpmn:message id="Msg_Pizza" />
+  <bpmn:message id="Msg_Money" />
+  <bpmn:message id="Msg_Receipt" />
+  <bpmn:process id="Process_Customer" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_Customer" name="Hungry for pizza">
+      <bpmn:outgoing>Flow_Cust_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_SelectPizza" name="Select a pizza">
+      <bpmn:incoming>Flow_Cust_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_OrderPizza" name="Order a pizza">
+      <bpmn:incoming>Flow_Cust_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:eventBasedGateway id="Gateway_EventBased">
+      <bpmn:incoming>Flow_Cust_3</bpmn:incoming>
+      <bpmn:incoming>Flow_Cust_Loop</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cust_5</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="CatchEvent_Timer" name="60 minutes">
+      <bpmn:incoming>Flow_Cust_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_7</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TE_1" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_AskPizza" name="Ask for the pizza">
+      <bpmn:incoming>Flow_Cust_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_Loop</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PayPizza" name="Pay the pizza">
+      <bpmn:incoming>Flow_Cust_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_EatPizza" name="Eat the pizza">
+      <bpmn:incoming>Flow_Cust_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EndEvent_Customer" name="Hunger satisfied">
+      <bpmn:incoming>Flow_Cust_9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Cust_1" sourceRef="StartEvent_Customer" targetRef="Task_SelectPizza" />
+    <bpmn:sequenceFlow id="Flow_Cust_2" sourceRef="Task_SelectPizza" targetRef="Task_OrderPizza" />
+    <bpmn:sequenceFlow id="Flow_Cust_3" sourceRef="Task_OrderPizza" targetRef="Gateway_EventBased" />
+    <bpmn:sequenceFlow id="Flow_Cust_Loop" sourceRef="Task_AskPizza" targetRef="Gateway_EventBased" />
+    <bpmn:sequenceFlow id="Flow_Cust_4" sourceRef="Gateway_EventBased" targetRef="CatchEvent_PizzaReceived" />
+    <bpmn:sequenceFlow id="Flow_Cust_5" sourceRef="Gateway_EventBased" targetRef="CatchEvent_Timer" />
+    <bpmn:sequenceFlow id="Flow_Cust_6" sourceRef="CatchEvent_PizzaReceived" targetRef="Task_PayPizza" />
+    <bpmn:sequenceFlow id="Flow_Cust_7" sourceRef="CatchEvent_Timer" targetRef="Task_AskPizza" />
+    <bpmn:sequenceFlow id="Flow_Cust_8" sourceRef="Task_PayPizza" targetRef="Task_EatPizza" />
+    <bpmn:sequenceFlow id="Flow_Cust_9" sourceRef="Task_EatPizza" targetRef="EndEvent_Customer" />
+    <bpmn:intermediateCatchEvent id="CatchEvent_PizzaReceived" name="pizza received">
+      <bpmn:incoming>Flow_Cust_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="ME_1" />
+    </bpmn:intermediateCatchEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_Vendor" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Vendor">
+      <bpmn:lane id="Lane_Clerk" name="clerk">
+        <bpmn:flowNodeRef>StartEvent_Vendor</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CatchEvent_WhereIsMyPizza</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CalmCustomer</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Chef" name="pizza chef">
+        <bpmn:flowNodeRef>Task_BakePizza</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Delivery" name="delivery boy">
+        <bpmn:flowNodeRef>Task_DeliverPizza</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReceivePayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Vendor</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_Vendor" name="Order received">
+      <bpmn:outgoing>Flow_V1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="ME_2" />
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Gateway_Split">
+      <bpmn:incoming>Flow_V1</bpmn:incoming>
+      <bpmn:outgoing>Flow_V2</bpmn:outgoing>
+      <bpmn:outgoing>Flow_V3</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:intermediateCatchEvent id="CatchEvent_WhereIsMyPizza" name="&#34;where is my pizza?&#34;">
+      <bpmn:incoming>Flow_V2</bpmn:incoming>
+      <bpmn:incoming>Flow_V_Loop</bpmn:incoming>
+      <bpmn:outgoing>Flow_V4</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="ME_3" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_CalmCustomer" name="Calm customer">
+      <bpmn:incoming>Flow_V4</bpmn:incoming>
+      <bpmn:outgoing>Flow_V_Loop</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_BakePizza" name="Bake the pizza">
+      <bpmn:incoming>Flow_V3</bpmn:incoming>
+      <bpmn:outgoing>Flow_V5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_DeliverPizza" name="Deliver the pizza">
+      <bpmn:incoming>Flow_V5</bpmn:incoming>
+      <bpmn:outgoing>Flow_V6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ReceivePayment" name="Receive payment">
+      <bpmn:incoming>Flow_V6</bpmn:incoming>
+      <bpmn:outgoing>Flow_V7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EndEvent_Vendor">
+      <bpmn:incoming>Flow_V7</bpmn:incoming>
+      <bpmn:terminateEventDefinition id="T_1" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_V1" sourceRef="StartEvent_Vendor" targetRef="Gateway_Split" />
+    <bpmn:sequenceFlow id="Flow_V2" sourceRef="Gateway_Split" targetRef="CatchEvent_WhereIsMyPizza" />
+    <bpmn:sequenceFlow id="Flow_V3" sourceRef="Gateway_Split" targetRef="Task_BakePizza" />
+    <bpmn:sequenceFlow id="Flow_V4" sourceRef="CatchEvent_WhereIsMyPizza" targetRef="Task_CalmCustomer" />
+    <bpmn:sequenceFlow id="Flow_V_Loop" sourceRef="Task_CalmCustomer" targetRef="CatchEvent_WhereIsMyPizza" />
+    <bpmn:sequenceFlow id="Flow_V5" sourceRef="Task_BakePizza" targetRef="Task_DeliverPizza" />
+    <bpmn:sequenceFlow id="Flow_V6" sourceRef="Task_DeliverPizza" targetRef="Task_ReceivePayment" />
+    <bpmn:sequenceFlow id="Flow_V7" sourceRef="Task_ReceivePayment" targetRef="EndEvent_Vendor" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Pizza">
+      <bpmndi:BPMNShape id="Participant_Vendor_di" bpmnElement="Participant_Vendor" isHorizontal="true">
+        <dc:Bounds x="160" y="420" width="1050" height="420" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Delivery_di" bpmnElement="Lane_Delivery" isHorizontal="true">
+        <dc:Bounds x="190" y="700" width="1020" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Chef_di" bpmnElement="Lane_Chef" isHorizontal="true">
+        <dc:Bounds x="190" y="560" width="1020" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Clerk_di" bpmnElement="Lane_Clerk" isHorizontal="true">
+        <dc:Bounds x="190" y="420" width="1020" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Vendor_di" bpmnElement="StartEvent_Vendor">
+        <dc:Bounds x="252" y="472" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="234" y="515" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Split_di" bpmnElement="Gateway_Split">
+        <dc:Bounds x="335" y="465" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_WhereIsMyPizza_di" bpmnElement="CatchEvent_WhereIsMyPizza">
+        <dc:Bounds x="442" y="472" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="515" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalmCustomer_di" bpmnElement="Task_CalmCustomer">
+        <dc:Bounds x="540" y="450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_BakePizza_di" bpmnElement="Task_BakePizza">
+        <dc:Bounds x="410" y="590" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DeliverPizza_di" bpmnElement="Task_DeliverPizza">
+        <dc:Bounds x="650" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReceivePayment_di" bpmnElement="Task_ReceivePayment">
+        <dc:Bounds x="860" y="730" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Vendor_di" bpmnElement="EndEvent_Vendor">
+        <dc:Bounds x="1030" y="752" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_V1_di" bpmnElement="Flow_V1">
+        <di:waypoint x="288" y="490" />
+        <di:waypoint x="335" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V2_di" bpmnElement="Flow_V2">
+        <di:waypoint x="385" y="490" />
+        <di:waypoint x="442" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V3_di" bpmnElement="Flow_V3">
+        <di:waypoint x="360" y="515" />
+        <di:waypoint x="360" y="630" />
+        <di:waypoint x="410" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V4_di" bpmnElement="Flow_V4">
+        <di:waypoint x="478" y="490" />
+        <di:waypoint x="540" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V_Loop_di" bpmnElement="Flow_V_Loop">
+        <di:waypoint x="590" y="530" />
+        <di:waypoint x="590" y="545" />
+        <di:waypoint x="420" y="545" />
+        <di:waypoint x="420" y="490" />
+        <di:waypoint x="442" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V5_di" bpmnElement="Flow_V5">
+        <di:waypoint x="510" y="630" />
+        <di:waypoint x="580" y="630" />
+        <di:waypoint x="580" y="770" />
+        <di:waypoint x="650" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V6_di" bpmnElement="Flow_V6">
+        <di:waypoint x="750" y="770" />
+        <di:waypoint x="860" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_V7_di" bpmnElement="Flow_V7">
+        <di:waypoint x="960" y="770" />
+        <di:waypoint x="1030" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Customer_di" bpmnElement="Participant_Customer" isHorizontal="true">
+        <dc:Bounds x="160" y="70" width="1050" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Customer_di" bpmnElement="StartEvent_Customer">
+        <dc:Bounds x="210" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="188" y="195" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectPizza_di" bpmnElement="Task_SelectPizza">
+        <dc:Bounds x="300" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OrderPizza_di" bpmnElement="Task_OrderPizza">
+        <dc:Bounds x="440" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_EventBased_di" bpmnElement="Gateway_EventBased">
+        <dc:Bounds x="580" y="145" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_Timer_di" bpmnElement="CatchEvent_Timer">
+        <dc:Bounds x="642" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="635" y="275" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AskPizza_di" bpmnElement="Task_AskPizza">
+        <dc:Bounds x="730" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PayPizza_di" bpmnElement="Task_PayPizza">
+        <dc:Bounds x="860" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EatPizza_di" bpmnElement="Task_EatPizza">
+        <dc:Bounds x="1000" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Customer_di" bpmnElement="EndEvent_Customer">
+        <dc:Bounds x="1140" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1119" y="195" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_PizzaReceived_di" bpmnElement="CatchEvent_PizzaReceived">
+        <dc:Bounds x="702" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="685" y="133" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Cust_1_di" bpmnElement="Flow_Cust_1">
+        <di:waypoint x="246" y="170" />
+        <di:waypoint x="300" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_2_di" bpmnElement="Flow_Cust_2">
+        <di:waypoint x="400" y="170" />
+        <di:waypoint x="440" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_3_di" bpmnElement="Flow_Cust_3">
+        <di:waypoint x="540" y="170" />
+        <di:waypoint x="580" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_Loop_di" bpmnElement="Flow_Cust_Loop">
+        <di:waypoint x="731" y="283" />
+        <di:waypoint x="720" y="290" />
+        <di:waypoint x="550" y="290" />
+        <di:waypoint x="550" y="170" />
+        <di:waypoint x="580" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_4_di" bpmnElement="Flow_Cust_4">
+        <di:waypoint x="630" y="170" />
+        <di:waypoint x="702" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_5_di" bpmnElement="Flow_Cust_5">
+        <di:waypoint x="605" y="195" />
+        <di:waypoint x="605" y="250" />
+        <di:waypoint x="642" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_6_di" bpmnElement="Flow_Cust_6">
+        <di:waypoint x="738" y="170" />
+        <di:waypoint x="860" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_7_di" bpmnElement="Flow_Cust_7">
+        <di:waypoint x="678" y="250" />
+        <di:waypoint x="730" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_8_di" bpmnElement="Flow_Cust_8">
+        <di:waypoint x="960" y="170" />
+        <di:waypoint x="1000" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cust_9_di" bpmnElement="Flow_Cust_9">
+        <di:waypoint x="1100" y="170" />
+        <di:waypoint x="1140" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_Order_di" bpmnElement="MessageFlow_Order">
+        <di:waypoint x="490" y="210" />
+        <di:waypoint x="490" y="290" />
+        <di:waypoint x="270" y="290" />
+        <di:waypoint x="270" y="472" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="354" y="272" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_Ask_di" bpmnElement="MessageFlow_Ask">
+        <di:waypoint x="760" y="290" />
+        <di:waypoint x="760" y="370" />
+        <di:waypoint x="460" y="370" />
+        <di:waypoint x="460" y="472" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_CalmResponse_di" bpmnElement="MessageFlow_CalmResponse">
+        <di:waypoint x="590" y="450" />
+        <di:waypoint x="590" y="390" />
+        <di:waypoint x="800" y="390" />
+        <di:waypoint x="800" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_PizzaDelivered_di" bpmnElement="MessageFlow_PizzaDelivered">
+        <di:waypoint x="720" y="730" />
+        <di:waypoint x="720" y="188" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="719" y="462" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_Money_di" bpmnElement="MessageFlow_Money">
+        <di:waypoint x="890" y="210" />
+        <di:waypoint x="890" y="730" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="850" y="399" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_Receipt_di" bpmnElement="MessageFlow_Receipt">
+        <di:waypoint x="930" y="730" />
+        <di:waypoint x="930" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="941" y="399" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
