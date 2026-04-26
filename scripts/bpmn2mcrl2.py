@@ -50,6 +50,87 @@ def camel_to_snake(name):
     return clean_name(name)
 
 
+def parse_duration_to_time(duration_str):
+    """
+    解析ISO 8601持续时间格式到mCRL2时间值（秒）
+    例如: PT5M -> 300, PT1H -> 3600, P1D -> 86400
+    """
+    duration_str = duration_str.strip()
+
+    # 简单的ISO 8601持续时间解析
+    if duration_str.startswith("PT"):
+        # 时间部分
+        time_part = duration_str[2:]
+        total_seconds = 0
+
+        # 解析小时
+        if "H" in time_part:
+            hours = int(time_part.split("H")[0])
+            total_seconds += hours * 3600
+            time_part = time_part.split("H")[1]
+
+        # 解析分钟
+        if "M" in time_part:
+            minutes = int(time_part.split("M")[0])
+            total_seconds += minutes * 60
+            time_part = time_part.split("M")[1]
+
+        # 解析秒
+        if "S" in time_part:
+            seconds = int(time_part.split("S")[0])
+            total_seconds += seconds
+
+        return str(total_seconds)
+
+    elif duration_str.startswith("P"):
+        # 日期部分
+        date_part = duration_str[1:]
+        total_seconds = 0
+
+        # 解析天
+        if "D" in date_part:
+            days = int(date_part.split("D")[0])
+            total_seconds += days * 86400
+
+        return str(total_seconds)
+
+    # 如果无法解析，返回默认值
+    return "0"
+
+
+def parse_cron_to_interval(cron_str):
+    """
+    解析简单的cron表达式到时间间隔（秒）
+    例如: "0/5 0/1 * 1/1 * ?" -> 每5分钟 = 300秒
+    这是一个简化的解析器，主要处理常见的周期性模式
+    """
+    parts = cron_str.strip().split()
+    if len(parts) < 6:
+        return None
+
+    # 分钟字段
+    minute_field = parts[0]
+    # 小时字段
+    hour_field = parts[1]
+
+    # 解析分钟间隔 (例如 "0/5" 表示每5分钟)
+    if "/" in minute_field:
+        minute_parts = minute_field.split("/")
+        if len(minute_parts) == 2:
+            interval_minutes = int(minute_parts[1])
+            return str(interval_minutes * 60)
+
+    # 解析小时间隔 (例如 "0/1" 表示每1小时)
+    if "/" in hour_field:
+        hour_parts = hour_field.split("/")
+        if len(hour_parts) == 2:
+            interval_hours = int(hour_parts[1])
+            return str(interval_hours * 3600)
+
+    # 默认返回None表示无法解析
+    return None
+
+
 def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     print(f"正在解析 BPMN 协作模型: {bpmn_filepath} ...")
     tree = ET.parse(bpmn_filepath)
@@ -66,6 +147,8 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
         "exact_msg_nodes": {},
         "used_actions": set(),
         "warnings": [],
+        "has_timer": False,
+        "timer_info": {},
     }
 
     def node_type(elem):
@@ -93,6 +176,33 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             if node_type(child) in EVENT_DEFINITION_TYPES
         ]
 
+    def extract_timer_info(elem):
+        timer_def = elem.find("bpmn:timerEventDefinition", ns)
+        if timer_def is None:
+            return None
+
+        info = {"type": None, "value": None}
+
+        time_cycle = timer_def.find("bpmn:timeCycle", ns)
+        if time_cycle is not None and time_cycle.text:
+            info["type"] = "cycle"
+            info["value"] = time_cycle.text.strip()
+            return info
+
+        time_date = timer_def.find("bpmn:timeDate", ns)
+        if time_date is not None and time_date.text:
+            info["type"] = "date"
+            info["value"] = time_date.text.strip()
+            return info
+
+        time_duration = timer_def.find("bpmn:timeDuration", ns)
+        if time_duration is not None and time_duration.text:
+            info["type"] = "duration"
+            info["value"] = time_duration.text.strip()
+            return info
+
+        return None
+
     def collect_scope(scope_elem):
         ctx = {
             "nodes": {},
@@ -104,6 +214,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             "boundary_events": {},
             "boundary_details": {},
             "event_definitions": {},
+            "timer_info": {},
         }
 
         for elem in list(scope_elem):
@@ -113,6 +224,13 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                 ctx["nodes"][eid] = elem.attrib.get("name", eid)
                 ctx["types"][eid] = tag
                 ctx["event_definitions"][eid] = event_definition_types(elem)
+
+                if "timerEventDefinition" in ctx["event_definitions"][eid]:
+                    timer_info = extract_timer_info(elem)
+                    if timer_info:
+                        ctx["timer_info"][eid] = timer_info
+                        sync_state["has_timer"] = True
+                        sync_state["timer_info"][eid] = timer_info
 
                 if tag == "startEvent":
                     ctx["starts"].append(eid)
@@ -213,6 +331,14 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     def make_event_action(node_id, ctx, prefix="event"):
         raw_name = ctx["nodes"].get(node_id, node_id)
         defs = ctx["event_definitions"].get(node_id, [])
+
+        if "timerEventDefinition" in defs and node_id in ctx.get("timer_info", {}):
+            timer_info = ctx["timer_info"][node_id]
+            base = clean_name(raw_name if raw_name and raw_name != node_id else "timer")
+            action_name = f"{prefix}_{base}"
+            sync_state["used_actions"].add(action_name)
+            return f"{action_name}(oid)"
+
         base = clean_name(raw_name if raw_name and raw_name != node_id else "_".join(defs) or node_id)
         if base.startswith(prefix + "_"):
             action_name = base
@@ -231,12 +357,33 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
 
         if ntype in {"boundaryEvent", "intermediateCatchEvent", "intermediateThrowEvent"}:
             prefix = "boundary" if ntype == "boundaryEvent" else "event"
-            return make_event_action(node_id, ctx, prefix=prefix)
+            action = make_event_action(node_id, ctx, prefix=prefix)
+
+            if node_id in ctx.get("timer_info", {}):
+                timer_info = ctx["timer_info"][node_id]
+                if timer_info["type"] == "duration":
+                    delay = parse_duration_to_time(timer_info["value"])
+                    return f"(tau @ {delay}) . {action}"
+
+            return action
 
         if ntype == "startEvent":
             defs = ctx["event_definitions"].get(node_id, [])
             if defs:
-                return make_event_action(node_id, ctx, prefix="start")
+                action = make_event_action(node_id, ctx, prefix="start")
+                if "timerEventDefinition" in defs and node_id in ctx.get("timer_info", {}):
+                    timer_info = ctx["timer_info"][node_id]
+                    if timer_info["type"] == "duration":
+                        delay = parse_duration_to_time(timer_info["value"])
+                        return f"{action} @ {delay}"
+                    elif timer_info["type"] == "cycle":
+                        sync_state["warnings"].append(
+                            f"Timer cycle '{timer_info['value']}' at {node_id} modeled as timed action"
+                        )
+                        return action
+                    else:
+                        return action
+                return action
             return ""
 
         if node_id in sync_state["exact_msg_nodes"]:
@@ -323,13 +470,38 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
         starts = ctx["starts"]
         if not starts:
             return "delta"
-        return choice([
-            build_expr(start, ctx, current_proc_id, visited=set(visited or set()))
-            for start in starts
-        ])
+
+        start_exprs = []
+        for start in starts:
+            base_expr = build_expr(start, ctx, current_proc_id, visited=set(visited or set()))
+
+            if start in ctx.get("timer_info", {}):
+                timer_info = ctx["timer_info"][start]
+                if timer_info["type"] == "duration":
+                    delay = parse_duration_to_time(timer_info["value"])
+                    start_exprs.append(f"(tau @ {delay}) . {base_expr}")
+                elif timer_info["type"] == "cycle":
+                    interval = parse_cron_to_interval(timer_info["value"])
+                    if interval:
+                        start_exprs.append(f"(tau @ t) . {base_expr}")
+                    else:
+                        start_exprs.append(base_expr)
+                else:
+                    start_exprs.append(base_expr)
+            else:
+                start_exprs.append(base_expr)
+
+        return choice(start_exprs)
 
     def build_boundary_expr(boundary_id, ctx, current_proc_id, stop_node=None, visited=None):
         boundary_action = make_node_action(boundary_id, ctx, current_proc_id)
+
+        if boundary_id in ctx.get("timer_info", {}):
+            timer_info = ctx["timer_info"][boundary_id]
+            if timer_info["type"] == "duration":
+                delay = parse_duration_to_time(timer_info["value"])
+                boundary_action = f"(tau @ {delay}) . {boundary_action}"
+
         next_nodes = first_successors(boundary_id, ctx)
         tails = [
             build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited or set()))
@@ -566,8 +738,28 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
         clean_p_id = clean_name(p_id)
         ctx = collect_scope(process)
         logic = build_start_scope(ctx, p_id)
-        main_procs_code.append(f"  {clean_p_id}(oid: OrderId) = {logic};")
-        sync_state["init_procs"].append(f"{clean_p_id}(order_id(1))")
+
+        has_cycle_timer = False
+        cycle_interval = None
+        for start in ctx["starts"]:
+            if start in ctx.get("timer_info", {}):
+                timer_info = ctx["timer_info"][start]
+                if timer_info["type"] == "cycle":
+                    interval = parse_cron_to_interval(timer_info["value"])
+                    if interval:
+                        has_cycle_timer = True
+                        cycle_interval = interval
+                        break
+
+        if has_cycle_timer and cycle_interval:
+            main_procs_code.append(
+                f"  {clean_p_id}(oid: OrderId, t: Real) = "
+                f"{logic} . {clean_p_id}(oid, t + {cycle_interval});"
+            )
+            sync_state["init_procs"].append(f"{clean_p_id}(order_id(1), 0)")
+        else:
+            main_procs_code.append(f"  {clean_p_id}(oid: OrderId) = {logic};")
+            sync_state["init_procs"].append(f"{clean_p_id}(order_id(1))")
 
     final_declarations = sorted(sync_state["used_actions"] | sync_state["all_sync_actions"])
     forbidden_prefixes = ("s_", "r_", "s_sync")
@@ -585,17 +777,32 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     {init_body}
   )"""
 
-    mcrl2_code = f"""% Auto-generated mCRL2 with Collaboration & Parallel Support
+    if sync_state["has_timer"]:
+        mcrl2_code = f"""% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events
 sort OrderId = struct order_id(pid: Pos);
 
-act 
+act
   {', '.join(final_declarations)} : OrderId;
 
-proc 
+proc
 {chr(10).join(main_procs_code)}
 {chr(10).join(sync_state['extra_procs'])}
 
-init 
+init
+  {init_code};
+"""
+    else:
+        mcrl2_code = f"""% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  {', '.join(final_declarations)} : OrderId;
+
+proc
+{chr(10).join(main_procs_code)}
+{chr(10).join(sync_state['extra_procs'])}
+
+init
   {init_code};
 """
     with open(output_filepath, "w", encoding="utf-8") as f:
@@ -608,8 +815,8 @@ init
 
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent.parent
-    input_file = project_root / "samples" / "sample1" / "camunda" / "message_cossitence.bpmn"
-    output_file = project_root / "samples" / "sample1" / "mcrl2" / "message_cossitence_output.mcrl2"
+    input_file = project_root / "samples" / "sample2" / "camunda" / "taskAssignmentEmail.bpmn"
+    output_file = project_root / "samples" / "sample2" / "mcrl2" / "taskAssignment_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     convert_bpmn_to_mcrl2(str(input_file), str(output_file))
