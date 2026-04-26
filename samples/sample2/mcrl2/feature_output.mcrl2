@@ -1,0 +1,14 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  accept_feature_request, handle_feature_request, reject_feature_request : OrderId;
+
+proc
+  process_feature(oid: OrderId) = handle_feature_request(oid) . (tau . accept_feature_request(oid) + tau . reject_feature_request(oid));
+
+
+init
+  allow({accept_feature_request, handle_feature_request, reject_feature_request},
+    process_feature(order_id(1))
+  );

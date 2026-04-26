@@ -1,0 +1,14 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer : OrderId;
+
+proc
+  loan_process(oid: OrderId, t: Real) = (tau @ t) . start_timer(oid) . check_credit_score(oid) . (tau . grant_loan(oid) . endevent_1alwvtl(oid) + tau . reject_loan_request(oid) . endevent_0zj88y0(oid)) . endevent_0q9wl5o(oid) . loan_process(oid, t + 300);
+
+
+init
+  allow({check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer},
+    loan_process(order_id(1), 0)
+  );

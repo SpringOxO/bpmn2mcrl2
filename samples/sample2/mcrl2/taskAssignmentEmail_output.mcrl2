@@ -1,0 +1,14 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  do_something, end_event : OrderId;
+
+proc
+  taskassignmentemail(oid: OrderId) = do_something(oid) . end_event(oid);
+
+
+init
+  allow({do_something, end_event},
+    taskassignmentemail(order_id(1))
+  );
