@@ -29,9 +29,18 @@
 | **终止符号** | `bpmn:endEvent` | `delta` (或进程结束) | 已完成 |
 | **用户任务** | `bpmn:userTask` | 一般task处理 | 已完成 |
 | **边界事件** | `bpmn:boundaryEvent` | 普通event | 已完成 |
-| **定时器定义** | `bpmn:timeEventDefinition` | 普通event - 待完善 | 开发中 |
+| **定时器定义** | `bpmn:timeEventDefinition` | @ | 已完成 |
 | **子流程** | `bpmn:subprocess` | 递归 | 已完成 |
+| **数据判断** | `bpmn:tFormalExpression` | -> | 已完成 |
 
 ## 使用方法
 
 修改脚本中的bpmn输入路径和mcrl2输出路径直接运行
+或使用参数:
+positional arguments:
+  input_file       BPMN 文件的路径 (可选)
+  output_file      输出的 mCRL2 文件路径 (可选)
+
+options:
+  -h, --help       show this help message and exit
+  --disable-timer  禁用定时器特殊建模（将定时器视为普通节点）
