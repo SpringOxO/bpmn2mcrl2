@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import re
+import argparse
 from pathlib import Path
 from collections import deque
 
@@ -122,7 +123,7 @@ def extract_variables(expr):
     return {t for t in tokens if t not in reserved and not t.isdigit()}
 
 
-def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
+def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     print(f"正在解析 BPMN 协作模型: {bpmn_filepath} ...")
     tree = ET.parse(bpmn_filepath)
     root = tree.getroot()
@@ -219,7 +220,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                 ctx["types"][eid] = tag
                 ctx["event_definitions"][eid] = event_definition_types(elem)
 
-                if "timerEventDefinition" in ctx["event_definitions"][eid]:
+                if "timerEventDefinition" in ctx["event_definitions"][eid] and enable_timer:
                     timer_info = extract_timer_info(elem)
                     if timer_info:
                         ctx["timer_info"][eid] = timer_info
@@ -607,7 +608,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                 sync_state["init_procs"].append(f"{b_name}(order_id(1){params_init})")
 
             j_logic = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
-            sync_state["extra_procs"].append(f"  gw_{sid}_handler(oid: OrderId{params_def}) = {r_join}(oid) . {j_logic};")
+            sync_state["extra_procs"].append(f"  gw_{sid}_handler(oid: OrderId{params_def}) = {seq([f'{r_join}(oid)', j_logic])};")
             sync_state["init_procs"].append(f"gw_{sid}_handler(order_id(1){params_init})")
 
             sync_state["rules"].append(f"{t_s} | {' | '.join([t_r] * len(next_nodes))} -> {t_c}")
@@ -737,7 +738,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     init_body = " || ".join(sync_state["init_procs"]) if sync_state["init_procs"] else "delta"
 
     if sync_state["rules"]:
-        rules_str = ", ".join(sync_state['rules'])
+        # 将 rules 列表转化为集合 (set) 进行去重，再转化为列表排序，保证输出稳定性
+        unique_rules = sorted(list(set(sync_state["rules"])))
+        rules_str = ", ".join(unique_rules)
         init_code = f"""allow({{{', '.join(sorted(allow_acts))}}},
     comm({{{rules_str}}},
       {init_body}
@@ -785,9 +788,26 @@ init
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="将 BPMN 转换为 mCRL2 模型")
+    parser.add_argument("input_file", nargs="?", default="", help="BPMN 文件的路径 (可选)")
+    parser.add_argument("output_file", nargs="?", default="", help="输出的 mCRL2 文件路径 (可选)")
+    parser.add_argument("--disable-timer", action="store_true", help="禁用定时器特殊建模（将定时器视为普通节点）")
+    
+    args = parser.parse_args()
+
     project_root = Path(__file__).resolve().parent.parent
-    input_file = project_root / "samples" / "sample2" / "camunda" / "loan-granting.bpmn"
-    output_file = project_root / "samples" / "sample2" / "mcrl2" / "loan-granting_output.mcrl2"
+    
+    if args.input_file:
+        input_file = Path(args.input_file)
+    else:
+        input_file = project_root / "samples" / "sample3" / "camunda" / "pizza-collaboration.bpmn"
+        
+    if args.output_file:
+        output_file = Path(args.output_file)
+    else:
+        output_file = project_root / "samples" / "sample3" / "mcrl2" / "pizza-collaboration_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    convert_bpmn_to_mcrl2(str(input_file), str(output_file))
+    
+    # 核心调用，将命令行开关的状态取反后传入
+    convert_bpmn_to_mcrl2(str(input_file), str(output_file), enable_timer=not args.disable_timer)
