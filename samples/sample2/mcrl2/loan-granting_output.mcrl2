@@ -1,14 +1,17 @@
-% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
 sort OrderId = struct order_id(pid: Pos);
 
 act
-  check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer : OrderId;
+  c_trigger_startevent_1, check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, r_trigger_startevent_1, reject_loan_request, s_trigger_startevent_1, start_timer : OrderId;
 
 proc
-  loan_process(oid: OrderId, t: Real) = (tau @ t) . start_timer(oid) . check_credit_score(oid) . (tau . grant_loan(oid) . endevent_1alwvtl(oid) + tau . reject_loan_request(oid) . endevent_0zj88y0(oid)) . endevent_0q9wl5o(oid) . loan_process(oid, t + 300);
-
+  loan_process_instance(oid: OrderId, score: Int) = start_timer(oid) . check_credit_score(oid) . ((score > 5) -> tau . grant_loan(oid) . endevent_1alwvtl(oid) + (score <= 5) -> tau . reject_loan_request(oid) . endevent_0zj88y0(oid)) . endevent_0q9wl5o(oid) . delta;
+  loan_process_factory(id_num: Pos) = r_trigger_startevent_1(order_id(id_num)) . (sum score: Int . ((score >= 0 && score <= 10)) -> ( loan_process_instance(order_id(id_num), score) . loan_process_factory(id_num + 1) ));
+  Timer_startevent_1(id_num: Pos, t: Real) = (tau @ t) . s_trigger_startevent_1(order_id(id_num)) . Timer_startevent_1(id_num + 1, t + 300);
 
 init
-  allow({check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer},
-    loan_process(order_id(1), 0)
+  allow({c_trigger_startevent_1, check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer},
+    comm({s_trigger_startevent_1 | r_trigger_startevent_1 -> c_trigger_startevent_1},
+      Timer_startevent_1(1, 0) || loan_process_factory(1)
+    )
   );
