@@ -406,17 +406,26 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                 return action
             return ""
 
+        raw_name = ctx["nodes"].get(node_id, "")
+        base_action_name = clean_name(raw_name if raw_name else node_id)
+
         if node_id in sync_state["exact_msg_nodes"]:
             role, m_name = sync_state["exact_msg_nodes"][node_id]
-            action_name = f"{role}_{m_name}"
-            sync_state["used_actions"].add(action_name)
-            return f"{action_name}(oid)"
+            msg_action = f"{role}_{m_name}"
+            sync_state["used_actions"].add(msg_action)
+            
+            if ntype in TASK_NODE_TYPES:
+                sync_state["used_actions"].add(base_action_name)
+                if role == "s":
+                    return f"{base_action_name}(oid) . {msg_action}(oid)"
+                else:
+                    return f"{msg_action}(oid) . {base_action_name}(oid)"
+            else:
+                return f"{msg_action}(oid)"
 
-        raw_name = ctx["nodes"].get(node_id, "")
-        action_name = clean_name(raw_name if raw_name else node_id)
-        sync_state["used_actions"].add(action_name)
+        sync_state["used_actions"].add(base_action_name)
 
-        return f"{action_name}(oid)"
+        return f"{base_action_name}(oid)"
 
     def build_boundary_expr(boundary_id, ctx, current_proc_id, stop_node=None, visited=None):
         boundary_action = make_node_action(boundary_id, ctx, current_proc_id)
