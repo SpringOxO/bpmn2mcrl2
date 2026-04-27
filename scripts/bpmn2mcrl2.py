@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 from collections import deque
 
-
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 
 TASK_NODE_TYPES = {
@@ -35,7 +34,6 @@ EVENT_DEFINITION_TYPES = {
     "errorEventDefinition",
 }
 
-
 def clean_name(name):
     """清理名称以符合 mCRL2 规范"""
     if not name:
@@ -43,92 +41,85 @@ def clean_name(name):
     clean = re.sub(r"[^a-zA-Z0-9]", "_", name).strip("_").lower()
     return clean if clean else "action"
 
-
 def camel_to_snake(name):
     name = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
     name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
     return clean_name(name)
 
-
 def parse_duration_to_time(duration_str):
     """
     解析ISO 8601持续时间格式到mCRL2时间值（秒）
-    例如: PT5M -> 300, PT1H -> 3600, P1D -> 86400
     """
     duration_str = duration_str.strip()
-
-    # 简单的ISO 8601持续时间解析
     if duration_str.startswith("PT"):
-        # 时间部分
         time_part = duration_str[2:]
         total_seconds = 0
-
-        # 解析小时
         if "H" in time_part:
             hours = int(time_part.split("H")[0])
             total_seconds += hours * 3600
             time_part = time_part.split("H")[1]
-
-        # 解析分钟
         if "M" in time_part:
             minutes = int(time_part.split("M")[0])
             total_seconds += minutes * 60
             time_part = time_part.split("M")[1]
-
-        # 解析秒
         if "S" in time_part:
             seconds = int(time_part.split("S")[0])
             total_seconds += seconds
-
         return str(total_seconds)
-
     elif duration_str.startswith("P"):
-        # 日期部分
         date_part = duration_str[1:]
         total_seconds = 0
-
-        # 解析天
         if "D" in date_part:
             days = int(date_part.split("D")[0])
             total_seconds += days * 86400
-
         return str(total_seconds)
-
-    # 如果无法解析，返回默认值
     return "0"
-
 
 def parse_cron_to_interval(cron_str):
     """
     解析简单的cron表达式到时间间隔（秒）
-    例如: "0/5 0/1 * 1/1 * ?" -> 每5分钟 = 300秒
-    这是一个简化的解析器，主要处理常见的周期性模式
     """
     parts = cron_str.strip().split()
     if len(parts) < 6:
         return None
-
-    # 分钟字段
     minute_field = parts[0]
-    # 小时字段
     hour_field = parts[1]
-
-    # 解析分钟间隔 (例如 "0/5" 表示每5分钟)
     if "/" in minute_field:
         minute_parts = minute_field.split("/")
         if len(minute_parts) == 2:
             interval_minutes = int(minute_parts[1])
             return str(interval_minutes * 60)
-
-    # 解析小时间隔 (例如 "0/1" 表示每1小时)
     if "/" in hour_field:
         hour_parts = hour_field.split("/")
         if len(hour_parts) == 2:
             interval_hours = int(hour_parts[1])
             return str(interval_hours * 3600)
-
-    # 默认返回None表示无法解析
     return None
+
+def parse_condition(expr):
+    """将 BPMN 表达式转换为 mCRL2 守卫语法"""
+    if not expr:
+        return "true"
+    # 移除 ${ ... }
+    match = re.search(r"\$\{(.*?)\}", expr)
+    if match:
+        expr = match.group(1)
+    # 简单的语法转换
+    expr = expr.replace("&&", "&&").replace("||", "||")
+    expr = expr.replace("==", "==").replace("!=", "!=")
+    return f"({expr.strip()})"
+
+def extract_variables(expr):
+    """从表达式中提取变量名"""
+    if not expr:
+        return set()
+    clean_expr = expr
+    match = re.search(r"\$\{(.*?)\}", expr)
+    if match:
+        clean_expr = match.group(1)
+    tokens = re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", clean_expr)
+    reserved = {"true", "false", "and", "or", "Int", "Real", "Bool", "tau", "delta"}
+    return {t for t in tokens if t not in reserved and not t.isdigit()}
 
 
 def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
@@ -148,7 +139,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
         "used_actions": set(),
         "warnings": [],
         "has_timer": False,
+        "has_cycle_timer": False,
         "timer_info": {},
+        "all_vars": set(),
     }
 
     def node_type(elem):
@@ -182,7 +175,6 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             return None
 
         info = {"type": None, "value": None}
-
         time_cycle = timer_def.find("bpmn:timeCycle", ns)
         if time_cycle is not None and time_cycle.text:
             info["type"] = "cycle"
@@ -215,6 +207,8 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             "boundary_details": {},
             "event_definitions": {},
             "timer_info": {},
+            "flow_conditions": {},
+            "variables": set(),
         }
 
         for elem in list(scope_elem):
@@ -235,7 +229,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                 if tag == "startEvent":
                     ctx["starts"].append(eid)
                 elif tag == "subProcess":
-                    ctx["subprocesses"][eid] = collect_scope(elem)
+                    inner_ctx = collect_scope(elem)
+                    ctx["subprocesses"][eid] = inner_ctx
+                    ctx["variables"].update(inner_ctx["variables"])
                     if elem.find("bpmn:multiInstanceLoopCharacteristics", ns) is not None:
                         sync_state["warnings"].append(
                             f"subProcess {eid} contains multiInstanceLoopCharacteristics; "
@@ -264,7 +260,30 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                     ctx["flows"].setdefault(src, []).append(tgt)
                     ctx["flow_names"][(src, tgt)] = elem.attrib.get("name", "")
 
+                    cond_elem = elem.find("bpmn:conditionExpression", ns)
+                    if cond_elem is None:
+                        for child in elem:
+                            if child.tag.endswith("conditionExpression"):
+                                cond_elem = child
+                                break
+                    if cond_elem is not None and cond_elem.text:
+                        cond_text = cond_elem.text.strip()
+                        ctx["flow_conditions"][(src, tgt)] = parse_condition(cond_text)
+                        ctx["variables"].update(extract_variables(cond_text))
+
         return ctx
+
+    process_contexts = {}
+    for process in root.findall(".//bpmn:process", ns):
+        p_id = process.attrib.get("id", "Process")
+        ctx = collect_scope(process)
+        process_contexts[p_id] = ctx
+        sync_state["all_vars"].update(ctx["variables"])
+
+    vars_list = sorted(list(sync_state["all_vars"]))
+    params_def = "".join([f", {v}: Int" for v in vars_list])
+    params_call = "".join([f", {v}" for v in vars_list])
+    params_init = "".join([", 0" for _ in vars_list])
 
     part_to_proc = {}
     for part in root.findall(".//bpmn:participant", ns):
@@ -378,7 +397,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                         return f"{action} @ {delay}"
                     elif timer_info["type"] == "cycle":
                         sync_state["warnings"].append(
-                            f"Timer cycle '{timer_info['value']}' at {node_id} modeled as timed action"
+                            f"Timer cycle '{timer_info['value']}' at {node_id} modeled as separate process trigger"
                         )
                         return action
                     else:
@@ -394,104 +413,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
 
         raw_name = ctx["nodes"].get(node_id, "")
         action_name = clean_name(raw_name if raw_name else node_id)
-        matched_msg = False
+        sync_state["used_actions"].add(action_name)
 
-        def get_core(name):
-            return name.replace("send_", "").replace("recv_", "").replace("receive_", "")
-
-        for msg in sync_state["messages"]:
-            m_name = msg["name"]
-            core_m = get_core(m_name)
-            match_str = core_m if core_m else m_name
-
-            if match_str and match_str in action_name:
-                if current_proc_id == msg["src_proc"]:
-                    action_name = f"s_{m_name}"
-                    matched_msg = True
-                    break
-                if current_proc_id == msg["tgt_proc"]:
-                    action_name = f"r_{m_name}"
-                    matched_msg = True
-                    break
-
-        if matched_msg or ntype in TASK_NODE_TYPES:
-            sync_state["used_actions"].add(action_name)
-            return f"{action_name}(oid)"
-
-        return ""
-
-    def condition_flag(condition_text):
-        match = re.search(r"\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*!=\s*null\s*\}", condition_text or "")
-        if match:
-            return f"{camel_to_snake(match.group(1))}_present"
-        return f"{clean_name(condition_text or 'condition')}_satisfied"
-
-    def condition_base_token(flag_name):
-        if flag_name.endswith("_id_present"):
-            return flag_name[:-len("_id_present")]
-        if flag_name.endswith("_present"):
-            return flag_name[:-len("_present")]
-        if flag_name.endswith("_satisfied"):
-            return flag_name[:-len("_satisfied")]
-        return flag_name
-
-    def boundary_condition_flags(boundary_ids, ctx):
-        flags = []
-        seen = set()
-        for boundary_id in boundary_ids:
-            detail = ctx["boundary_details"].get(boundary_id, {})
-            if not detail.get("is_conditional"):
-                continue
-            condition_texts = detail.get("condition_texts") or [ctx["nodes"].get(boundary_id, boundary_id)]
-            for text in condition_texts:
-                flag = condition_flag(text)
-                if flag not in seen:
-                    seen.add(flag)
-                    flags.append(flag)
-        return flags
-
-    def updated_condition_values(action_name, values):
-        updated = dict(values)
-        for flag_name, value in values.items():
-            token = condition_base_token(flag_name)
-            if token and token in action_name:
-                updated[flag_name] = "true"
-        return updated
-
-    def bool_guard(parts):
-        filtered = [part for part in parts if part]
-        if not filtered:
-            return "true"
-        if len(filtered) == 1:
-            return filtered[0]
-        return " && ".join(f"({part})" for part in filtered)
-
-    def build_start_scope(ctx, current_proc_id, visited=None):
-        starts = ctx["starts"]
-        if not starts:
-            return "delta"
-
-        start_exprs = []
-        for start in starts:
-            base_expr = build_expr(start, ctx, current_proc_id, visited=set(visited or set()))
-
-            if start in ctx.get("timer_info", {}):
-                timer_info = ctx["timer_info"][start]
-                if timer_info["type"] == "duration":
-                    delay = parse_duration_to_time(timer_info["value"])
-                    start_exprs.append(f"(tau @ {delay}) . {base_expr}")
-                elif timer_info["type"] == "cycle":
-                    interval = parse_cron_to_interval(timer_info["value"])
-                    if interval:
-                        start_exprs.append(f"(tau @ t) . {base_expr}")
-                    else:
-                        start_exprs.append(base_expr)
-                else:
-                    start_exprs.append(base_expr)
-            else:
-                start_exprs.append(base_expr)
-
-        return choice(start_exprs)
+        return f"{action_name}(oid)"
 
     def build_boundary_expr(boundary_id, ctx, current_proc_id, stop_node=None, visited=None):
         boundary_action = make_node_action(boundary_id, ctx, current_proc_id)
@@ -516,88 +440,82 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
 
         alternatives = [normal_expr]
         for boundary_id in boundary_ids:
-            alternatives.append(build_boundary_expr(
-                boundary_id,
-                ctx,
-                current_proc_id,
-                stop_node=stop_node,
-                visited=set(visited or set()),
-            ))
-        return choice(alternatives)
-
-    def build_conditional_boundary_activity(node_id, inner_ctx, parent_ctx, current_proc_id, stop_node, visited):
-        boundary_ids = [
-            boundary_id
-            for boundary_id in parent_ctx["boundary_events"].get(node_id, [])
-            if parent_ctx["boundary_details"].get(boundary_id, {}).get("is_conditional")
-        ]
-        flags = boundary_condition_flags(boundary_ids, parent_ctx)
-        proc_name = f"{clean_name(node_id)}_lifecycle"
-        flag_params = ", ".join(f"{flag}: Bool" for flag in flags)
-        params = f"oid: OrderId, active: Bool"
-        if flag_params:
-            params = f"{params}, {flag_params}"
-
-        parent_tail = choice([
-            build_expr(n, parent_ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
-            for n in first_successors(node_id, parent_ctx)
-        ])
-
-        def boundary_guard(boundary_id, values):
-            detail = parent_ctx["boundary_details"].get(boundary_id, {})
-            condition_texts = detail.get("condition_texts") or [parent_ctx["nodes"].get(boundary_id, boundary_id)]
-            condition_flags = [condition_flag(text) for text in condition_texts]
-            return bool_guard(["active"] + [values.get(flag, flag) for flag in condition_flags])
-
-        def wrap_conditional_boundaries(normal_expr, values):
-            alternatives = [normal_expr]
-            for boundary_id in reversed(boundary_ids):
-                detail = parent_ctx["boundary_details"].get(boundary_id, {})
-                if not detail.get("cancel_activity", True):
-                    continue
-                boundary_expr = build_boundary_expr(
+            if not ctx["boundary_details"].get(boundary_id, {}).get("is_conditional"):
+                alternatives.append(build_boundary_expr(
                     boundary_id,
-                    parent_ctx,
+                    ctx,
                     current_proc_id,
                     stop_node=stop_node,
-                    visited=set(visited),
-                )
-                guard = boundary_guard(boundary_id, values)
-                alternatives.append(f"({guard}) -> ({boundary_expr}) <> delta")
-            return choice(alternatives)
+                    visited=set(visited or set())
+                ))
+        return choice(alternatives)
 
-        def inner_successors_expr(current_id, values, current_visited):
-            tails = [
-                build_inner_expr(n, values, set(current_visited))
-                for n in first_successors(current_id, inner_ctx)
-            ]
-            return choice(tails)
+    def build_conditional_boundary_activity(current_id, inner_ctx, ctx, current_proc_id, stop_node, visited):
+        flags = []
+        for b_id in ctx["boundary_events"].get(current_id, []):
+            details = ctx["boundary_details"].get(b_id, {})
+            if details.get("is_conditional"):
+                flags.append(clean_name(b_id))
+
+        if not flags:
+            return "delta"
+
+        proc_name = f"activity_{clean_name(current_id)}"
+        params = ", ".join(["oid: OrderId", "active: Bool"] + [f"{f}_done: Bool" for f in flags])
+
+        def updated_condition_values(triggered_flag, current_values):
+            return {k: ("true" if k == triggered_flag else v) for k, v in current_values.items()}
+
+        def inner_successors_expr(node, current_values, current_visited):
+            next_nodes = first_successors(node, inner_ctx)
+            return choice([
+                build_inner_expr(n, current_values, set(current_visited))
+                for n in next_nodes
+            ])
 
         def build_inner_expr(current_id, values, current_visited):
-            if not current_id:
-                return "delta"
-            if current_id in current_visited:
-                return "delta"
-
+            if not current_id: return "delta"
+            if current_id in current_visited: return "delta"
             current_visited.add(current_id)
+
+            def wrap_conditional_boundaries(expr, current_values):
+                options = [expr]
+                for boundary_id in ctx["boundary_events"].get(node_id, []):
+                    details = ctx["boundary_details"].get(boundary_id, {})
+                    if details.get("is_conditional"):
+                        flag_name = clean_name(boundary_id)
+                        conditions = details.get("condition_texts", [])
+                        guard = parse_condition(" && ".join(conditions))
+                        boundary_act = make_node_action(boundary_id, ctx, current_proc_id)
+                        cancel = details.get("cancel_activity", True)
+
+                        next_nodes = first_successors(boundary_id, ctx)
+                        boundary_tail = choice([
+                            build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
+                            for n in next_nodes
+                        ])
+                        
+                        args = ["oid", "false" if cancel else "true"] + [current_values[f] for f in flags]
+                        call_proc = f"{proc_name}({', '.join(args)})"
+                        
+                        options.append(f"({guard}) -> ({boundary_act} . {seq([call_proc, boundary_tail])})")
+                return choice(options)
+
             ntype = inner_ctx["types"].get(current_id)
-
-            if ntype == "startEvent":
-                return wrap_conditional_boundaries(
-                    inner_successors_expr(current_id, values, current_visited),
-                    values,
-                )
-
             if ntype == "endEvent":
-                after_end = wrap_conditional_boundaries(parent_tail, values)
-                normal = seq([make_node_action(current_id, inner_ctx, current_proc_id), after_end])
-                return wrap_conditional_boundaries(normal, values)
+                action_expr = make_node_action(current_id, inner_ctx, current_proc_id)
+                return wrap_conditional_boundaries(action_expr, values)
 
-            if ntype == "exclusiveGateway" and len(first_successors(current_id, inner_ctx)) > 1:
-                branches = [
-                    seq(["tau", build_inner_expr(n, values, set(current_visited))])
-                    for n in first_successors(current_id, inner_ctx)
-                ]
+            if ntype == "exclusiveGateway":
+                next_nodes = first_successors(current_id, inner_ctx)
+                branches = []
+                for n in next_nodes:
+                    cond = inner_ctx["flow_conditions"].get((current_id, n))
+                    branch_expr = build_inner_expr(n, values, set(current_visited))
+                    if cond:
+                        branches.append(f"{cond} -> {seq(['tau', branch_expr])}")
+                    else:
+                        branches.append(seq(["tau", branch_expr]))
                 return wrap_conditional_boundaries(choice(branches), values)
 
             action_expr = make_node_action(current_id, inner_ctx, current_proc_id)
@@ -684,13 +602,13 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                     visited=set(visited),
                 )
                 sync_state["extra_procs"].append(
-                    f"  {b_name}(oid: OrderId) = {t_r}(oid) . {seq([b_body, f'{s_sig}(oid)'])} . delta;"
+                    f"  {b_name}(oid: OrderId{params_def}) = {t_r}(oid) . {seq([b_body, f'{s_sig}(oid)'])} . delta;"
                 )
-                sync_state["init_procs"].append(f"{b_name}(order_id(1))")
+                sync_state["init_procs"].append(f"{b_name}(order_id(1){params_init})")
 
             j_logic = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
-            sync_state["extra_procs"].append(f"  gw_{sid}_handler(oid: OrderId) = {r_join}(oid) . {j_logic};")
-            sync_state["init_procs"].append(f"gw_{sid}_handler(order_id(1))")
+            sync_state["extra_procs"].append(f"  gw_{sid}_handler(oid: OrderId{params_def}) = {r_join}(oid) . {j_logic};")
+            sync_state["init_procs"].append(f"gw_{sid}_handler(order_id(1){params_init})")
 
             sync_state["rules"].append(f"{t_s} | {' | '.join([t_r] * len(next_nodes))} -> {t_c}")
             s_syncs = [f"s_sync_{sid}_{i}" for i in range(len(next_nodes))]
@@ -709,7 +627,11 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
                     stop_node=branch_stop,
                     visited=set(visited),
                 )
-                branches.append(seq(["tau", branch_expr]))
+                cond = ctx["flow_conditions"].get((node_id, n))
+                if cond:
+                    branches.append(f"{cond} -> {seq(['tau', branch_expr])}")
+                else:
+                    branches.append(seq(["tau", branch_expr]))
             gateway_expr = choice(branches)
             if join:
                 tail = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
@@ -732,34 +654,82 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
             visited=set(visited),
         )
 
-    main_procs_code = []
-    for process in root.findall(".//bpmn:process", ns):
-        p_id = process.attrib.get("id", "Process")
-        clean_p_id = clean_name(p_id)
-        ctx = collect_scope(process)
-        logic = build_start_scope(ctx, p_id)
+    def build_start_scope(ctx, current_proc_id, visited=None):
+        starts = ctx["starts"]
+        if not starts:
+            return "delta"
 
-        has_cycle_timer = False
-        cycle_interval = None
-        for start in ctx["starts"]:
+        start_exprs = []
+        for start in starts:
+            base_expr = build_expr(start, ctx, current_proc_id, visited=set(visited or set()))
+
             if start in ctx.get("timer_info", {}):
                 timer_info = ctx["timer_info"][start]
-                if timer_info["type"] == "cycle":
+                if timer_info["type"] == "duration":
+                    delay = parse_duration_to_time(timer_info["value"])
+                    start_exprs.append(f"(tau @ {delay}) . {base_expr}")
+                elif timer_info["type"] == "cycle":
                     interval = parse_cron_to_interval(timer_info["value"])
                     if interval:
-                        has_cycle_timer = True
-                        cycle_interval = interval
-                        break
+                        sync_state["has_cycle_timer"] = True
+                        trigger_act = f"trigger_{clean_name(start)}"
+                        sync_state["all_sync_actions"].update({f"s_{trigger_act}", f"r_{trigger_act}", f"c_{trigger_act}"})
+                        sync_state["rules"].append(f"s_{trigger_act} | r_{trigger_act} -> c_{trigger_act}")
+                        
+                        timer_proc_name = f"Timer_{clean_name(start)}"
+                        sync_state["extra_procs"].append(
+                            f"  {timer_proc_name}(id_num: Pos, t: Real) = (tau @ t) . s_{trigger_act}(order_id(id_num)) . {timer_proc_name}(id_num + 1, t + {interval});"
+                        )
+                        sync_state["init_procs"].append(f"{timer_proc_name}(1, 0)")
+                        
+                        start_exprs.append(base_expr)
+                    else:
+                        start_exprs.append(base_expr)
+                else:
+                    start_exprs.append(base_expr)
+            else:
+                start_exprs.append(base_expr)
 
-        if has_cycle_timer and cycle_interval:
-            main_procs_code.append(
-                f"  {clean_p_id}(oid: OrderId, t: Real) = "
-                f"{logic} . {clean_p_id}(oid, t + {cycle_interval});"
-            )
-            sync_state["init_procs"].append(f"{clean_p_id}(order_id(1), 0)")
+        return choice(start_exprs)
+
+    main_procs_code = []
+    for p_id, ctx in process_contexts.items():
+        clean_p_id = clean_name(p_id)
+        logic = build_start_scope(ctx, p_id)
+
+        cycle_trigger = None
+        for start in ctx["starts"]:
+            if start in ctx.get("timer_info", {}):
+                if ctx["timer_info"][start]["type"] == "cycle":
+                    cycle_trigger = f"trigger_{clean_name(start)}"
+                    break
+
+        if cycle_trigger:
+            instance_name = f"{clean_p_id}_instance"
+            factory_name = f"{clean_p_id}_factory"
+
+            factory_body = f"r_{cycle_trigger}(order_id(id_num)) . "
+            if vars_list:
+                sum_vars = ", ".join([f"{v}: Int" for v in vars_list])
+                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in vars_list])
+                factory_body += f"(sum {sum_vars} . ({guards}) -> ( {instance_name}(order_id(id_num){params_call}) . {factory_name}(id_num + 1) ))"
+            else:
+                factory_body += f"( {instance_name}(order_id(id_num){params_call}) . {factory_name}(id_num + 1) )"
+
+            main_procs_code.append(f"  {instance_name}(oid: OrderId{params_def}) = {logic} . delta;")
+            main_procs_code.append(f"  {factory_name}(id_num: Pos) = {factory_body};")
+
+            sync_state["init_procs"].append(f"{factory_name}(1)")
+            sync_state["has_timer"] = True
         else:
-            main_procs_code.append(f"  {clean_p_id}(oid: OrderId) = {logic};")
-            sync_state["init_procs"].append(f"{clean_p_id}(order_id(1))")
+            init_call = f"{clean_p_id}(order_id(1){params_call})"
+            if vars_list:
+                sum_vars = ", ".join([f"{v}: Int" for v in vars_list])
+                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in vars_list])
+                init_call = f"(sum {sum_vars} . ({guards}) -> {init_call})"
+
+            main_procs_code.append(f"  {clean_p_id}(oid: OrderId{params_def}) = {logic};")
+            sync_state["init_procs"].append(init_call)
 
     final_declarations = sorted(sync_state["used_actions"] | sync_state["all_sync_actions"])
     forbidden_prefixes = ("s_", "r_", "s_sync")
@@ -767,8 +737,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     init_body = " || ".join(sync_state["init_procs"]) if sync_state["init_procs"] else "delta"
 
     if sync_state["rules"]:
+        rules_str = ", ".join(sync_state['rules'])
         init_code = f"""allow({{{', '.join(sorted(allow_acts))}}},
-    comm({{{', '.join(sync_state['rules'])}}},
+    comm({{{rules_str}}},
       {init_body}
     )
   )"""
@@ -777,8 +748,8 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath):
     {init_body}
   )"""
 
-    if sync_state["has_timer"]:
-        mcrl2_code = f"""% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events
+    if sync_state["has_timer"] or vars_list:
+        mcrl2_code = f"""% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
 sort OrderId = struct order_id(pid: Pos);
 
 act
@@ -815,8 +786,8 @@ init
 
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent.parent
-    input_file = project_root / "samples" / "sample2" / "camunda" / "taskAssignmentEmail.bpmn"
-    output_file = project_root / "samples" / "sample2" / "mcrl2" / "taskAssignment_output.mcrl2"
+    input_file = project_root / "samples" / "sample2" / "camunda" / "loan-granting.bpmn"
+    output_file = project_root / "samples" / "sample2" / "mcrl2" / "loan-granting_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     convert_bpmn_to_mcrl2(str(input_file), str(output_file))

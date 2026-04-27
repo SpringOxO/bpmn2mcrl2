@@ -1,0 +1,35 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(id_val: Pos);
+
+act
+  c_trigger, check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, r_trigger, reject_loan_request, s_trigger, start_timer : OrderId;
+
+proc
+  % 1. 单次业务逻辑：处理完了就彻底结束 (delta)
+  loan_instance(oid: OrderId, score: Int) = 
+    start_timer(oid) . check_credit_score(oid) . 
+    ((score > 5) -> tau . grant_loan(oid) . endevent_1alwvtl(oid) 
+    + 
+    (score <= 5) -> tau . reject_loan_request(oid) . endevent_0zj88y0(oid)) . 
+    endevent_0q9wl5o(oid) . delta;
+
+  % 2. 流程工厂：每次收到触发信号时，随机抓取一个新分数，然后派生出新实例
+  loan_factory(id_num: Pos) = 
+    r_trigger(order_id(id_num)) . 
+    % 收到信号后，掷骰子决定这个新客户的分数
+    (sum score: Int . ((score >= 0 && score <= 10)) -> 
+      ( loan_instance(order_id(id_num), score) . loan_factory(id_num + 1) )
+    );
+
+  % 3. 定时器：每次唤醒递增 pid (为了防止无限图，这里设定只触发 3 次)
+  Timer(id_num: Pos, max_triggers: Pos, t: Real) = 
+    (id_num <= max_triggers) -> 
+      (tau @ t) . s_trigger(order_id(id_num)) . Timer(id_num + 1, max_triggers, t + 300)
+    <> delta;
+
+init
+  allow({c_trigger, check_credit_score, endevent_0q9wl5o, endevent_0zj88y0, endevent_1alwvtl, grant_loan, reject_loan_request, start_timer},
+    comm({s_trigger | r_trigger -> c_trigger},
+      Timer(1, 3, 0) || loan_factory(1)
+    )
+  );
