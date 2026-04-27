@@ -1,0 +1,19 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  bake_the_pizza, c_1, c_2, c_money, c_pizza, c_pizza_order, c_receipt, c_start_gw_1, c_sync_join_1, eat_the_pizza, endevent_vendor, event_60_minutes, event_pizza_received, event_where_is_my_pizza, gateway_eventbased, hunger_satisfied, r_1, r_2, r_money, r_pizza, r_pizza_order, r_receipt, r_start_gw_1, r_sync_join_1, s_1, s_2, s_money, s_pizza, s_pizza_order, s_receipt, s_start_gw_1, s_sync_1_0, s_sync_1_1, select_a_pizza, start_order_received : OrderId;
+
+proc
+  process_customer(oid: OrderId) = select_a_pizza(oid) . s_pizza_order(oid) . gateway_eventbased(oid) . (event_pizza_received(oid) . r_receipt(oid) . eat_the_pizza(oid) . hunger_satisfied(oid) + event_60_minutes(oid) . r_2(oid));
+  process_vendor(oid: OrderId) = start_order_received(oid) . s_start_gw_1(oid) . delta;
+  gw_1_branch_0(oid: OrderId) = r_start_gw_1(oid) . bake_the_pizza(oid) . s_pizza(oid) . s_receipt(oid) . endevent_vendor(oid) . s_sync_1_0(oid) . delta;
+  gw_1_branch_1(oid: OrderId) = r_start_gw_1(oid) . event_where_is_my_pizza(oid) . s_2(oid) . s_sync_1_1(oid) . delta;
+  gw_1_handler(oid: OrderId) = r_sync_join_1(oid);
+
+init
+  allow({bake_the_pizza, c_1, c_2, c_money, c_pizza, c_pizza_order, c_receipt, c_start_gw_1, c_sync_join_1, eat_the_pizza, endevent_vendor, event_60_minutes, event_pizza_received, event_where_is_my_pizza, gateway_eventbased, hunger_satisfied, select_a_pizza, start_order_received},
+    comm({s_1 | r_1 -> c_1, s_2 | r_2 -> c_2, s_money | r_money -> c_money, s_pizza | r_pizza -> c_pizza, s_pizza_order | r_pizza_order -> c_pizza_order, s_receipt | r_receipt -> c_receipt, s_start_gw_1 | r_start_gw_1 | r_start_gw_1 -> c_start_gw_1, s_sync_1_0 | s_sync_1_1 | r_sync_join_1 -> c_sync_join_1},
+      process_customer(order_id(1)) || gw_1_branch_0(order_id(1)) || gw_1_branch_1(order_id(1)) || gw_1_handler(order_id(1)) || process_vendor(order_id(1))
+    )
+  );
