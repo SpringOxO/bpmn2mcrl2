@@ -274,10 +274,21 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
 
         return ctx
 
+    def incoming_counts(flows_map):
+        counts = {}
+        for targets in flows_map.values():
+            for target in targets:
+                counts[target] = counts.get(target, 0) + 1
+        return counts
+
     process_contexts = {}
     for process in root.findall(".//bpmn:process", ns):
         p_id = process.attrib.get("id", "Process")
         ctx = collect_scope(process)
+        
+        counts = incoming_counts(ctx["flows"])
+        ctx["extracted_nodes"] = {node for node, count in counts.items() if count > 1}
+        
         process_contexts[p_id] = ctx
         sync_state["all_vars"].update(ctx["variables"])
 
@@ -313,9 +324,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         })
 
         if src in node_to_proc:
-            sync_state["exact_msg_nodes"][src] = ("s", m_name)
+            sync_state["exact_msg_nodes"].setdefault(src, []).append(("s", m_name))
         if tgt in node_to_proc:
-            sync_state["exact_msg_nodes"][tgt] = ("r", m_name)
+            sync_state["exact_msg_nodes"].setdefault(tgt, []).append(("r", m_name))
 
         sync_state["rules"].append(f"s_{m_name} | r_{m_name} -> c_{m_name}")
         sync_state["all_sync_actions"].update({f"s_{m_name}", f"r_{m_name}", f"c_{m_name}"})
@@ -328,13 +339,6 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                 seen.add(curr)
                 q.extend(flows_map.get(curr, []))
         return seen
-
-    def incoming_counts(flows_map):
-        counts = {}
-        for targets in flows_map.values():
-            for target in targets:
-                counts[target] = counts.get(target, 0) + 1
-        return counts
 
     def find_join(branch_starts, flows_map):
         reach_sets = [get_reachable(s, flows_map) for s in branch_starts]
@@ -370,6 +374,20 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     def make_node_action(node_id, ctx, current_proc_id):
         ntype = ctx["types"].get(node_id)
 
+        if node_id in sync_state["exact_msg_nodes"]:
+            msg_list = sync_state["exact_msg_nodes"][node_id]
+            msg_actions_with_name = []
+            for role, m_name in msg_list:
+                msg_action = f"{role}_{m_name}"
+                sync_state["used_actions"].add(msg_action)
+                msg_actions_with_name.append((m_name, f"{msg_action}(oid)"))
+            
+            # 根据消息名字典序排序，确保通信双方握手顺序绝对一致
+            msg_actions_with_name.sort(key=lambda x: x[0])
+            sorted_msg_actions = [action for _, action in msg_actions_with_name]
+            
+            return seq(sorted_msg_actions)
+
         if ntype == "endEvent":
             name = clean_name(ctx["nodes"].get(node_id, "end_event"))
             sync_state["used_actions"].add(name)
@@ -389,40 +407,23 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
 
         if ntype == "startEvent":
             defs = ctx["event_definitions"].get(node_id, [])
+            action_str = ""
             if defs:
-                action = make_event_action(node_id, ctx, prefix="start")
+                action_str = make_event_action(node_id, ctx, prefix="start")
                 if "timerEventDefinition" in defs and node_id in ctx.get("timer_info", {}):
                     timer_info = ctx["timer_info"][node_id]
                     if timer_info["type"] == "duration":
                         delay = parse_duration_to_time(timer_info["value"])
-                        return f"{action} @ {delay}"
+                        action_str = f"{action_str} @ {delay}"
                     elif timer_info["type"] == "cycle":
                         sync_state["warnings"].append(
                             f"Timer cycle '{timer_info['value']}' at {node_id} modeled as separate process trigger"
                         )
-                        return action
-                    else:
-                        return action
-                return action
-            return ""
+            
+            return action_str
 
         raw_name = ctx["nodes"].get(node_id, "")
         base_action_name = clean_name(raw_name if raw_name else node_id)
-
-        if node_id in sync_state["exact_msg_nodes"]:
-            role, m_name = sync_state["exact_msg_nodes"][node_id]
-            msg_action = f"{role}_{m_name}"
-            sync_state["used_actions"].add(msg_action)
-            
-            if ntype in TASK_NODE_TYPES:
-                sync_state["used_actions"].add(base_action_name)
-                if role == "s":
-                    return f"{base_action_name}(oid) . {msg_action}(oid)"
-                else:
-                    return f"{msg_action}(oid) . {base_action_name}(oid)"
-            else:
-                return f"{msg_action}(oid)"
-
         sync_state["used_actions"].add(base_action_name)
 
         return f"{base_action_name}(oid)"
@@ -545,9 +546,12 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         initial_args = ["oid", "true"] + ["false" for _ in flags]
         return f"{proc_name}({', '.join(initial_args)})"
 
-    def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None):
+    def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None, is_extracted_call=False):
         if not node_id or node_id == stop_node:
             return ""
+
+        if node_id in ctx.get("extracted_nodes", set()) and not is_extracted_call:
+            return f"proc_{clean_name(node_id)}(oid{params_call})"
 
         visited = set(visited or set())
         if node_id in visited:
@@ -705,6 +709,13 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     main_procs_code = []
     for p_id, ctx in process_contexts.items():
         clean_p_id = clean_name(p_id)
+        
+        for ext_node in ctx.get("extracted_nodes", set()):
+            ext_logic = build_expr(ext_node, ctx, p_id, visited=set(), is_extracted_call=True)
+            sync_state["extra_procs"].append(
+                f"  proc_{clean_name(ext_node)}(oid: OrderId{params_def}) = {ext_logic};"
+            )
+
         logic = build_start_scope(ctx, p_id)
 
         cycle_trigger = None
