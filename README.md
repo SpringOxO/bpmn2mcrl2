@@ -32,6 +32,9 @@
 | **定时器定义** | `bpmn:timeEventDefinition` | @ | 已完成 |
 | **子流程** | `bpmn:subprocess` | 递归 | 已完成 |
 | **数据判断** | `bpmn:tFormalExpression` | -> | 已完成 |
+| **循环回路** | - | 独立一个进程 | 已完成 |
+| **事件网关** | `bpmn:eventBasedGateway` | 选择操作符 `+` | 已完成 |
+
 
 ## 使用方法
 

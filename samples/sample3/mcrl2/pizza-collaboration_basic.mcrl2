@@ -1,0 +1,60 @@
+
+act 
+    % Customer related
+    select_pizza, order_pizza, rece_pizza, timeout, send_ask, rece_calm, pay_money, rece_receipt, eat_pizza;
+
+    % Clerk related
+    rece_order, hint_to_chef, rece_ask, send_calm;
+
+    % Chef related
+    rece_hint, bake_pizza, pack_pizza;
+
+    % Delivery related
+    rece_packed, deliver_pizza, rece_money, send_receipt;
+
+    % communication
+    order, ask, calm, deliver, payment, receipt, hint, pack;
+
+
+
+proc 
+    % 顾客子进程：等待披萨
+    WaitPizza = (rece_pizza + timeout . send_ask . rece_calm . WaitPizza);
+    
+    % 顾客进程
+    Customer = select_pizza . order_pizza . WaitPizza . pay_money . rece_receipt . eat_pizza;
+
+    % 店员子进程：处理 Ask
+    DealAsk = rece_ask . send_calm . DealAsk;
+
+    % 店员
+    Clerk = rece_order . hint_to_chef . DealAsk + DealAsk;
+
+    % 主厨
+    Chef = rece_hint . bake_pizza . pack_pizza;
+
+    % 派送
+    Delivery = rece_packed . deliver_pizza . rece_money . send_receipt;
+
+
+init allow(
+    {
+        select_pizza, timeout, eat_pizza, bake_pizza, 
+        order, ask, calm, deliver, payment, receipt, hint, pack
+    },
+    comm(
+        {
+            order_pizza | rece_order -> order,
+            send_ask | rece_ask -> ask,
+            send_calm | rece_calm -> calm,
+            deliver_pizza | rece_pizza -> deliver,
+            pay_money | rece_money -> payment,
+            send_receipt | rece_receipt -> receipt,
+            hint_to_chef | rece_hint -> hint,
+            pack_pizza | rece_packed -> pack
+        },
+        Customer || Clerk || Chef || Delivery
+    )
+);
+
+
