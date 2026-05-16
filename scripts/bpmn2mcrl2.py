@@ -313,6 +313,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         src = mflow.attrib.get("sourceRef")
         tgt = mflow.attrib.get("targetRef")
         m_name = clean_name(mflow.attrib.get("name", "msg"))
+        flow_id = clean_name(mflow.attrib.get("id", m_name))
 
         src_proc = part_to_proc.get(src) or node_to_proc.get(src)
         tgt_proc = part_to_proc.get(tgt) or node_to_proc.get(tgt)
@@ -327,6 +328,27 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             sync_state["exact_msg_nodes"].setdefault(src, []).append(("s", m_name))
         if tgt in node_to_proc:
             sync_state["exact_msg_nodes"].setdefault(tgt, []).append(("r", m_name))
+
+        if src in part_to_proc and src not in node_to_proc:
+            env_proc_name = f"env_send_{flow_id}"
+            sync_state["extra_procs"].append(
+                f"  {env_proc_name}(oid: OrderId{params_def}) = s_{m_name}(oid) . delta;"
+            )
+            sync_state["init_procs"].append(f"{env_proc_name}(order_id(1){params_init})")
+            sync_state["warnings"].append(
+                f"messageFlow {mflow.attrib.get('id', m_name)} starts at participant {src}; "
+                f"generated external sender process {env_proc_name}."
+            )
+        if tgt in part_to_proc and tgt not in node_to_proc:
+            env_proc_name = f"env_recv_{flow_id}"
+            sync_state["extra_procs"].append(
+                f"  {env_proc_name}(oid: OrderId{params_def}) = r_{m_name}(oid) . delta;"
+            )
+            sync_state["init_procs"].append(f"{env_proc_name}(order_id(1){params_init})")
+            sync_state["warnings"].append(
+                f"messageFlow {mflow.attrib.get('id', m_name)} ends at participant {tgt}; "
+                f"generated external receiver process {env_proc_name}."
+            )
 
         sync_state["rules"].append(f"s_{m_name} | r_{m_name} -> c_{m_name}")
         sync_state["all_sync_actions"].update({f"s_{m_name}", f"r_{m_name}", f"c_{m_name}"})

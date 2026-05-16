@@ -1,0 +1,26 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_equipment_receipt_to_transport, c_manifest_sent_from_sa, c_order_info_from_ff_to_cb, c_receipt_from_sa_to_ff, c_s_o_from_ff_to_sa, c_s_o_from_owner, c_start_gw_1, c_sync_join_1, event_1vcgyyd, gateway_15l9l3p, r_equipment_receipt_to_transport, r_manifest_sent_from_sa, r_order_info_from_ff_to_cb, r_receipt_from_sa_to_ff, r_s_o_from_ff_to_sa, r_s_o_from_owner, r_start_gw_1, r_sync_join_1, s_equipment_receipt_to_transport, s_manifest_sent_from_sa, s_order_info_from_ff_to_cb, s_receipt_from_sa_to_ff, s_s_o_from_ff_to_sa, s_s_o_from_owner, s_start_gw_1, s_sync_1_0, s_sync_1_1 : OrderId;
+
+proc
+  process_0jeubsp(oid: OrderId) = r_s_o_from_owner(oid) . s_start_gw_1(oid) . delta;
+  process_1c1qq3r(oid: OrderId) = delta;
+  env_send_flow_0z0srfm(oid: OrderId) = s_s_o_from_owner(oid) . delta;
+  env_recv_flow_1lu0it9(oid: OrderId) = r_s_o_from_ff_to_sa(oid) . delta;
+  env_send_flow_088c0na(oid: OrderId) = s_manifest_sent_from_sa(oid) . delta;
+  env_send_flow_0i5291q(oid: OrderId) = s_receipt_from_sa_to_ff(oid) . delta;
+  env_recv_flow_1a2scnq(oid: OrderId) = r_equipment_receipt_to_transport(oid) . delta;
+  env_recv_flow_0w3b4ki(oid: OrderId) = r_order_info_from_ff_to_cb(oid) . delta;
+  proc_gateway_15l9l3p(oid: OrderId) = gateway_15l9l3p(oid) . r_manifest_sent_from_sa(oid) . r_receipt_from_sa_to_ff(oid) . s_equipment_receipt_to_transport(oid) . event_1vcgyyd(oid);
+  gw_1_branch_0(oid: OrderId) = r_start_gw_1(oid) . s_s_o_from_ff_to_sa(oid) . s_sync_1_0(oid) . delta;
+  gw_1_branch_1(oid: OrderId) = r_start_gw_1(oid) . s_order_info_from_ff_to_cb(oid) . s_sync_1_1(oid) . delta;
+  gw_1_handler(oid: OrderId) = r_sync_join_1(oid) . proc_gateway_15l9l3p(oid);
+
+init
+  allow({c_equipment_receipt_to_transport, c_manifest_sent_from_sa, c_order_info_from_ff_to_cb, c_receipt_from_sa_to_ff, c_s_o_from_ff_to_sa, c_s_o_from_owner, c_start_gw_1, c_sync_join_1, event_1vcgyyd, gateway_15l9l3p},
+    comm({s_equipment_receipt_to_transport | r_equipment_receipt_to_transport -> c_equipment_receipt_to_transport, s_manifest_sent_from_sa | r_manifest_sent_from_sa -> c_manifest_sent_from_sa, s_order_info_from_ff_to_cb | r_order_info_from_ff_to_cb -> c_order_info_from_ff_to_cb, s_receipt_from_sa_to_ff | r_receipt_from_sa_to_ff -> c_receipt_from_sa_to_ff, s_s_o_from_ff_to_sa | r_s_o_from_ff_to_sa -> c_s_o_from_ff_to_sa, s_s_o_from_owner | r_s_o_from_owner -> c_s_o_from_owner, s_start_gw_1 | r_start_gw_1 | r_start_gw_1 -> c_start_gw_1, s_sync_1_0 | s_sync_1_1 | r_sync_join_1 -> c_sync_join_1},
+      env_send_flow_0z0srfm(order_id(1)) || env_recv_flow_1lu0it9(order_id(1)) || env_send_flow_088c0na(order_id(1)) || env_send_flow_0i5291q(order_id(1)) || env_recv_flow_1a2scnq(order_id(1)) || env_recv_flow_0w3b4ki(order_id(1)) || gw_1_branch_0(order_id(1)) || gw_1_branch_1(order_id(1)) || gw_1_handler(order_id(1)) || process_0jeubsp(order_id(1)) || process_1c1qq3r(order_id(1))
+    )
+  );
