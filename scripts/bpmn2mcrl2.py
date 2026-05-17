@@ -312,8 +312,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     for mflow in root.findall(".//bpmn:messageFlow", ns):
         src = mflow.attrib.get("sourceRef")
         tgt = mflow.attrib.get("targetRef")
-        m_name = clean_name(mflow.attrib.get("name", "msg"))
-        flow_id = clean_name(mflow.attrib.get("id", m_name))
+        flow_id = clean_name(mflow.attrib.get("id", "msg"))
+        raw_message_name = mflow.attrib.get("name")
+        m_name = clean_name(raw_message_name) if raw_message_name else flow_id
 
         src_proc = part_to_proc.get(src) or node_to_proc.get(src)
         tgt_proc = part_to_proc.get(tgt) or node_to_proc.get(tgt)
