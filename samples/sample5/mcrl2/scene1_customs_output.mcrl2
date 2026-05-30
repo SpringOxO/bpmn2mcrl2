@@ -1,0 +1,17 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_fail_notice, c_pass_notice, c_submit_docs, endevent_envfail, endevent_envpass, endevent_fail, endevent_pass, gateway_envwait, inspect_cargo, r_fail_notice, r_pass_notice, r_submit_docs, s_fail_notice, s_pass_notice, s_submit_docs : OrderId;
+
+proc
+  process_environment(oid: OrderId) = s_submit_docs(oid) . gateway_envwait(oid) . (r_fail_notice(oid) . endevent_envfail(oid) + r_pass_notice(oid) . endevent_envpass(oid));
+  process_customs(oid: OrderId, CargoType: Int) = r_submit_docs(oid) . inspect_cargo(oid) . ((CargoType == 1 || CargoType == 2 || CargoType == 3) -> tau . s_pass_notice(oid) . endevent_pass(oid) + (CargoType != 1 && CargoType != 2 && CargoType != 3) -> tau . s_fail_notice(oid) . endevent_fail(oid));
+
+
+init
+  allow({c_fail_notice, c_pass_notice, c_submit_docs, endevent_envfail, endevent_envpass, endevent_fail, endevent_pass, gateway_envwait, inspect_cargo},
+    comm({s_fail_notice | r_fail_notice -> c_fail_notice, s_pass_notice | r_pass_notice -> c_pass_notice, s_submit_docs | r_submit_docs -> c_submit_docs},
+      process_environment(order_id(1)) || (sum CargoType: Int . ((CargoType >= 0 && CargoType <= 10)) -> process_customs(order_id(1), CargoType))
+    )
+  );

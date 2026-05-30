@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Scene1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="Collaboration_Customs_Env">
+    <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
+    <bpmn:participant id="Participant_Customs" name="Customs" processRef="Process_Customs" />
+    <bpmn:messageFlow id="Flow_msg_submit" name="submit docs" sourceRef="Task_Submit" targetRef="StartEvent_Customs" />
+    <bpmn:messageFlow id="Flow_msg_pass" name="pass notice" sourceRef="Task_Release" targetRef="CatchEvent_Pass" />
+    <bpmn:messageFlow id="Flow_msg_fail" name="fail notice" sourceRef="Task_Detain" targetRef="CatchEvent_Fail" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Environment" isExecutable="false">
+    <bpmn:sequenceFlow id="Flow_E6" sourceRef="CatchEvent_Fail" targetRef="EndEvent_EnvFail" />
+    <bpmn:sequenceFlow id="Flow_E5" sourceRef="CatchEvent_Pass" targetRef="EndEvent_EnvPass" />
+    <bpmn:sequenceFlow id="Flow_E4" sourceRef="Gateway_EnvWait" targetRef="CatchEvent_Fail" />
+    <bpmn:sequenceFlow id="Flow_E3" sourceRef="Gateway_EnvWait" targetRef="CatchEvent_Pass" />
+    <bpmn:sequenceFlow id="Flow_E2" sourceRef="Task_Submit" targetRef="Gateway_EnvWait" />
+    <bpmn:sequenceFlow id="Flow_E1" sourceRef="StartEvent_Env" targetRef="Task_Submit" />
+    <bpmn:endEvent id="EndEvent_EnvPass">
+      <bpmn:incoming>Flow_E5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="CatchEvent_Pass" name="Receive Pass">
+      <bpmn:incoming>Flow_E3</bpmn:incoming>
+      <bpmn:outgoing>Flow_E5</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_2" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:eventBasedGateway id="Gateway_EnvWait">
+      <bpmn:incoming>Flow_E2</bpmn:incoming>
+      <bpmn:outgoing>Flow_E3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_E4</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:task id="Task_Submit" name="Submit Documents">
+      <bpmn:incoming>Flow_E1</bpmn:incoming>
+      <bpmn:outgoing>Flow_E2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:startEvent id="StartEvent_Env">
+      <bpmn:outgoing>Flow_E1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="EndEvent_EnvFail">
+      <bpmn:incoming>Flow_E6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="CatchEvent_Fail" name="Receive Fail">
+      <bpmn:incoming>Flow_E4</bpmn:incoming>
+      <bpmn:outgoing>Flow_E6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_3" />
+    </bpmn:intermediateCatchEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_Customs" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Customs" name="Receive Docs">
+      <bpmn:outgoing>Flow_C1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Inspection" name="Inspect Cargo">
+      <bpmn:incoming>Flow_C1</bpmn:incoming>
+      <bpmn:outgoing>Flow_C2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_Result" name="Inspection Result?">
+      <bpmn:incoming>Flow_C2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Pass</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Release" name="Customs Release">
+      <bpmn:incoming>Flow_Pass</bpmn:incoming>
+      <bpmn:outgoing>Flow_C3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Detain" name="Detain Cargo">
+      <bpmn:incoming>Flow_Fail</bpmn:incoming>
+      <bpmn:outgoing>Flow_C4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EndEvent_Pass">
+      <bpmn:incoming>Flow_C3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Fail">
+      <bpmn:incoming>Flow_C4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_C1" sourceRef="StartEvent_Customs" targetRef="Task_Inspection" />
+    <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_Inspection" targetRef="Gateway_Result" />
+    <bpmn:sequenceFlow id="Flow_Pass" name="Pass (Type A,B,C)" sourceRef="Gateway_Result" targetRef="Task_Release">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${CargoType == 1 || CargoType == 2 || CargoType == 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fail" name="Fail (Other)" sourceRef="Gateway_Result" targetRef="Task_Detain">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${CargoType != 1 &amp;&amp; CargoType != 2 &amp;&amp; CargoType != 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_C3" sourceRef="Task_Release" targetRef="EndEvent_Pass" />
+    <bpmn:sequenceFlow id="Flow_C4" sourceRef="Task_Detain" targetRef="EndEvent_Fail" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Customs_Env">
+      <bpmndi:BPMNShape id="Participant_Environment_di" bpmnElement="Participant_Environment" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="600" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Env_di" bpmnElement="StartEvent_Env">
+        <dc:Bounds x="200" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Submit_di" bpmnElement="Task_Submit">
+        <dc:Bounds x="290" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_EnvWait_di" bpmnElement="Gateway_EnvWait">
+        <dc:Bounds x="445" y="135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_Pass_di" bpmnElement="CatchEvent_Pass">
+        <dc:Bounds x="552" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="536" y="138" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_EnvPass_di" bpmnElement="EndEvent_EnvPass">
+        <dc:Bounds x="642" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_EnvFail_di" bpmnElement="EndEvent_EnvFail">
+        <dc:Bounds x="642" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_Fail_di" bpmnElement="CatchEvent_Fail">
+        <dc:Bounds x="582" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="569" y="168" width="61" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_E1_di" bpmnElement="Flow_E1">
+        <di:waypoint x="236" y="160" />
+        <di:waypoint x="290" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E2_di" bpmnElement="Flow_E2">
+        <di:waypoint x="390" y="160" />
+        <di:waypoint x="445" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E3_di" bpmnElement="Flow_E3">
+        <di:waypoint x="470" y="135" />
+        <di:waypoint x="470" y="120" />
+        <di:waypoint x="552" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E4_di" bpmnElement="Flow_E4">
+        <di:waypoint x="470" y="185" />
+        <di:waypoint x="470" y="210" />
+        <di:waypoint x="582" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E5_di" bpmnElement="Flow_E5">
+        <di:waypoint x="588" y="120" />
+        <di:waypoint x="642" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E6_di" bpmnElement="Flow_E6">
+        <di:waypoint x="618" y="210" />
+        <di:waypoint x="642" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Customs_di" bpmnElement="Participant_Customs" isHorizontal="true">
+        <dc:Bounds x="150" y="320" width="600" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Customs_di" bpmnElement="StartEvent_Customs">
+        <dc:Bounds x="200" y="422" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Inspection_di" bpmnElement="Task_Inspection">
+        <dc:Bounds x="290" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Result_di" bpmnElement="Gateway_Result" isMarkerVisible="true">
+        <dc:Bounds x="445" y="415" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Release_di" bpmnElement="Task_Release">
+        <dc:Bounds x="550" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Detain_di" bpmnElement="Task_Detain">
+        <dc:Bounds x="550" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Pass_di" bpmnElement="EndEvent_Pass">
+        <dc:Bounds x="702" y="362" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Fail_di" bpmnElement="EndEvent_Fail">
+        <dc:Bounds x="702" y="482" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_C1_di" bpmnElement="Flow_C1">
+        <di:waypoint x="236" y="440" />
+        <di:waypoint x="290" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C2_di" bpmnElement="Flow_C2">
+        <di:waypoint x="390" y="440" />
+        <di:waypoint x="445" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Pass_di" bpmnElement="Flow_Pass">
+        <di:waypoint x="470" y="415" />
+        <di:waypoint x="470" y="380" />
+        <di:waypoint x="550" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fail_di" bpmnElement="Flow_Fail">
+        <di:waypoint x="470" y="465" />
+        <di:waypoint x="470" y="500" />
+        <di:waypoint x="550" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C3_di" bpmnElement="Flow_C3">
+        <di:waypoint x="650" y="380" />
+        <di:waypoint x="702" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C4_di" bpmnElement="Flow_C4">
+        <di:waypoint x="650" y="500" />
+        <di:waypoint x="702" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_msg_submit_di" bpmnElement="Flow_msg_submit">
+        <di:waypoint x="340" y="200" />
+        <di:waypoint x="340" y="261" />
+        <di:waypoint x="218" y="261" />
+        <di:waypoint x="218" y="422" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="249" y="236" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_msg_pass_di" bpmnElement="Flow_msg_pass">
+        <di:waypoint x="570" y="340" />
+        <di:waypoint x="570" y="138" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="557" y="229" width="57" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_msg_fail_di" bpmnElement="Flow_msg_fail">
+        <di:waypoint x="600" y="460" />
+        <di:waypoint x="600" y="228" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="592" y="334" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

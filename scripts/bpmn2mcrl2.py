@@ -733,10 +733,16 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     for p_id, ctx in process_contexts.items():
         clean_p_id = clean_name(p_id)
         
+        # 针对当前 Process，计算它的局部变量
+        proc_vars = sorted(list(ctx["variables"]))
+        local_params_def = "".join([f", {v}: Int" for v in proc_vars])
+        local_params_call = "".join([f", {v}" for v in proc_vars])
+        
         for ext_node in ctx.get("extracted_nodes", set()):
+            # 生成扩展节点时，也要带上局部变量
             ext_logic = build_expr(ext_node, ctx, p_id, visited=set(), is_extracted_call=True)
             sync_state["extra_procs"].append(
-                f"  proc_{clean_name(ext_node)}(oid: OrderId{params_def}) = {ext_logic};"
+                f"  proc_{clean_name(ext_node)}(oid: OrderId{local_params_def}) = {ext_logic};"
             )
 
         logic = build_start_scope(ctx, p_id)
@@ -753,26 +759,26 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             factory_name = f"{clean_p_id}_factory"
 
             factory_body = f"r_{cycle_trigger}(order_id(id_num)) . "
-            if vars_list:
-                sum_vars = ", ".join([f"{v}: Int" for v in vars_list])
-                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in vars_list])
-                factory_body += f"(sum {sum_vars} . ({guards}) -> ( {instance_name}(order_id(id_num){params_call}) . {factory_name}(id_num + 1) ))"
+            if proc_vars:
+                sum_vars = ", ".join([f"{v}: Int" for v in proc_vars])
+                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in proc_vars])
+                factory_body += f"(sum {sum_vars} . ({guards}) -> ( {instance_name}(order_id(id_num){local_params_call}) . {factory_name}(id_num + 1) ))"
             else:
-                factory_body += f"( {instance_name}(order_id(id_num){params_call}) . {factory_name}(id_num + 1) )"
+                factory_body += f"( {instance_name}(order_id(id_num){local_params_call}) . {factory_name}(id_num + 1) )"
 
-            main_procs_code.append(f"  {instance_name}(oid: OrderId{params_def}) = {logic} . delta;")
+            main_procs_code.append(f"  {instance_name}(oid: OrderId{local_params_def}) = {logic} . delta;")
             main_procs_code.append(f"  {factory_name}(id_num: Pos) = {factory_body};")
 
             sync_state["init_procs"].append(f"{factory_name}(1)")
             sync_state["has_timer"] = True
         else:
-            init_call = f"{clean_p_id}(order_id(1){params_call})"
-            if vars_list:
-                sum_vars = ", ".join([f"{v}: Int" for v in vars_list])
-                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in vars_list])
+            init_call = f"{clean_p_id}(order_id(1){local_params_call})"
+            if proc_vars:
+                sum_vars = ", ".join([f"{v}: Int" for v in proc_vars])
+                guards = " && ".join([f"({v} >= 0 && {v} <= 10)" for v in proc_vars])
                 init_call = f"(sum {sum_vars} . ({guards}) -> {init_call})"
 
-            main_procs_code.append(f"  {clean_p_id}(oid: OrderId{params_def}) = {logic};")
+            main_procs_code.append(f"  {clean_p_id}(oid: OrderId{local_params_def}) = {logic};")
             sync_state["init_procs"].append(init_call)
 
     final_declarations = sorted(sync_state["used_actions"] | sync_state["all_sync_actions"])
