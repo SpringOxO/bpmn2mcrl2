@@ -1,0 +1,20 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_flow_01n34zt, c_flow_0d09yx1, c_flow_0gophdd, c_flow_0jgf3p7, c_flow_1b8ce7l, c_flow_shortage_waiting, check_container_inventory, env_end, event_0o7oxck, event_wait_for_restock, r_flow_01n34zt, r_flow_0d09yx1, r_flow_0gophdd, r_flow_0jgf3p7, r_flow_1b8ce7l, r_flow_shortage_waiting, restock_container, s_flow_01n34zt, s_flow_0d09yx1, s_flow_0gophdd, s_flow_0jgf3p7, s_flow_1b8ce7l, s_flow_shortage_waiting : OrderId;
+
+proc
+  process_depotinventory(oid: OrderId, Container_Count: Int) = r_flow_0d09yx1(oid) . check_container_inventory(oid) . proc_gateway_inventoryavailable(oid, Container_Count);
+  process_environment(oid: OrderId) = s_flow_0d09yx1(oid) . (proc_env_receiveemptyctn(oid) + r_flow_shortage_waiting(oid) . proc_env_receiveemptyctn(oid));
+  cont_activity_15hjzys(oid: OrderId, Container_Count: Int) = s_flow_0jgf3p7(oid) . r_flow_1b8ce7l(oid) . s_flow_01n34zt(oid) . event_0o7oxck(oid);
+  cont_activity_restockcontainer(oid: OrderId, Container_Count: Int) = proc_gateway_inventoryavailable(oid, Container_Count);
+  proc_gateway_inventoryavailable(oid: OrderId, Container_Count: Int) = ((Container_Count > 0) -> tau . s_flow_0gophdd(oid) . cont_activity_15hjzys(oid, Container_Count - 1) + (Container_Count == 0) -> tau . s_flow_shortage_waiting(oid) . (tau @ 300) . event_wait_for_restock(oid) . restock_container(oid) . cont_activity_restockcontainer(oid, Container_Count + 1));
+  proc_env_receiveemptyctn(oid: OrderId) = r_flow_0gophdd(oid) . r_flow_0jgf3p7(oid) . s_flow_1b8ce7l(oid) . r_flow_01n34zt(oid) . env_end(oid);
+
+init
+  allow({c_flow_01n34zt, c_flow_0d09yx1, c_flow_0gophdd, c_flow_0jgf3p7, c_flow_1b8ce7l, c_flow_shortage_waiting, check_container_inventory, env_end, event_0o7oxck, event_wait_for_restock, restock_container},
+    comm({s_flow_01n34zt | r_flow_01n34zt -> c_flow_01n34zt, s_flow_0d09yx1 | r_flow_0d09yx1 -> c_flow_0d09yx1, s_flow_0gophdd | r_flow_0gophdd -> c_flow_0gophdd, s_flow_0jgf3p7 | r_flow_0jgf3p7 -> c_flow_0jgf3p7, s_flow_1b8ce7l | r_flow_1b8ce7l -> c_flow_1b8ce7l, s_flow_shortage_waiting | r_flow_shortage_waiting -> c_flow_shortage_waiting},
+      (sum Container_Count: Int . ((Container_Count >= 0 && Container_Count <= 10)) -> process_depotinventory(order_id(1), Container_Count)) || process_environment(order_id(1))
+    )
+  );

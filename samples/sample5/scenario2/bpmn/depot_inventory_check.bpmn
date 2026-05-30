@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Sample5_Scenario2" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_DepotInventory">
+    <bpmn:participant id="Participant_Depot" name="Depot" processRef="Process_DepotInventory" />
+    <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
+    <bpmn:messageFlow id="Flow_0d09yx1" sourceRef="Env_SendAskDepot" targetRef="Event_0v0liaj" />
+    <bpmn:messageFlow id="Flow_0gophdd" sourceRef="Activity_15hjzys" targetRef="Env_ReceiveEmptyCtn" />
+    <bpmn:messageFlow id="Flow_0jgf3p7" sourceRef="Activity_0516o4k" targetRef="Env_ReceiveArrivalInfo" />
+    <bpmn:messageFlow id="Flow_1b8ce7l" sourceRef="Env_SendOutboundReceipt" targetRef="Event_0n0ighc" />
+    <bpmn:messageFlow id="Flow_01n34zt" sourceRef="Activity_10s7b1e" targetRef="Env_ReceiveOutboundCtn" />
+    <bpmn:messageFlow id="Flow_shortage_waiting" sourceRef="Activity_SendShortageWaiting" targetRef="Env_ReceiveShortageWaiting" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_DepotInventory" name="Depot inventory check" isExecutable="false">
+    <bpmn:dataObject id="DataObject_ContainerCount" name="Container_Count" />
+    <bpmn:dataObjectReference id="DataObjectReference_ContainerCount" name="Container_Count" dataObjectRef="DataObject_ContainerCount" />
+
+    <bpmn:startEvent id="Event_0v0liaj" name="SA ask received">
+      <bpmn:outgoing>Flow_CheckInventory</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Activity_CheckInventory" name="check container inventory">
+      <bpmn:incoming>Flow_CheckInventory</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInventoryGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_InventoryAvailable" name="Container_Count available?">
+      <bpmn:incoming>Flow_ToInventoryGateway</bpmn:incoming>
+      <bpmn:incoming>Flow_RetryAfterRestock</bpmn:incoming>
+      <bpmn:outgoing>Flow_InventoryEnough</bpmn:outgoing>
+      <bpmn:outgoing>Flow_InventoryEmpty</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Activity_15hjzys" name="send Empty CTN to Transport">
+      <bpmn:documentation>mcrl2:update Container_Count = Container_Count - 1</bpmn:documentation>
+      <bpmn:incoming>Flow_InventoryEnough</bpmn:incoming>
+      <bpmn:outgoing>Flow_002acvn</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Activity_SendShortageWaiting" name="send shortage waiting message">
+      <bpmn:incoming>Flow_InventoryEmpty</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRestockTimer</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Event_WaitRestock" name="wait for restock">
+      <bpmn:incoming>Flow_ToRestockTimer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Restock</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_WaitRestock">
+        <bpmn:timeDuration>PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Activity_RestockContainer" name="restock container">
+      <bpmn:documentation>mcrl2:update Container_Count = Container_Count + 1</bpmn:documentation>
+      <bpmn:incoming>Flow_Restock</bpmn:incoming>
+      <bpmn:outgoing>Flow_RetryAfterRestock</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Activity_0516o4k" name="send CTN arrival info to SA">
+      <bpmn:incoming>Flow_002acvn</bpmn:incoming>
+      <bpmn:outgoing>Flow_0tldzzb</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Event_0n0ighc" name="Outbound and receipt recieved">
+      <bpmn:incoming>Flow_0tldzzb</bpmn:incoming>
+      <bpmn:outgoing>Flow_1xjqpvh</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Activity_10s7b1e" name="send Outbound CTN to Container Terminal">
+      <bpmn:incoming>Flow_1xjqpvh</bpmn:incoming>
+      <bpmn:outgoing>Flow_019avnj</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="Event_0o7oxck">
+      <bpmn:incoming>Flow_019avnj</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_CheckInventory" sourceRef="Event_0v0liaj" targetRef="Activity_CheckInventory" />
+    <bpmn:sequenceFlow id="Flow_ToInventoryGateway" sourceRef="Activity_CheckInventory" targetRef="Gateway_InventoryAvailable" />
+    <bpmn:sequenceFlow id="Flow_InventoryEnough" name="Container_Count &gt; 0" sourceRef="Gateway_InventoryAvailable" targetRef="Activity_15hjzys">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${Container_Count &gt; 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_InventoryEmpty" name="Container_Count == 0" sourceRef="Gateway_InventoryAvailable" targetRef="Activity_SendShortageWaiting">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${Container_Count == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToRestockTimer" sourceRef="Activity_SendShortageWaiting" targetRef="Event_WaitRestock" />
+    <bpmn:sequenceFlow id="Flow_Restock" sourceRef="Event_WaitRestock" targetRef="Activity_RestockContainer" />
+    <bpmn:sequenceFlow id="Flow_RetryAfterRestock" sourceRef="Activity_RestockContainer" targetRef="Gateway_InventoryAvailable" />
+    <bpmn:sequenceFlow id="Flow_002acvn" sourceRef="Activity_15hjzys" targetRef="Activity_0516o4k" />
+    <bpmn:sequenceFlow id="Flow_0tldzzb" sourceRef="Activity_0516o4k" targetRef="Event_0n0ighc" />
+    <bpmn:sequenceFlow id="Flow_1xjqpvh" sourceRef="Event_0n0ighc" targetRef="Activity_10s7b1e" />
+    <bpmn:sequenceFlow id="Flow_019avnj" sourceRef="Activity_10s7b1e" targetRef="Event_0o7oxck" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Environment" name="Environment" isExecutable="false">
+    <bpmn:startEvent id="Env_Start">
+      <bpmn:outgoing>Env_Flow_Ask</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Env_SendAskDepot" name="ask Depot for CTN">
+      <bpmn:incoming>Env_Flow_Ask</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ReceiveEmpty</bpmn:outgoing>
+      <bpmn:outgoing>Env_Flow_ReceiveShortage</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Env_ReceiveEmptyCtn" name="empty CTN received">
+      <bpmn:incoming>Env_Flow_ReceiveEmpty</bpmn:incoming>
+      <bpmn:incoming>Env_Flow_AfterShortage</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ReceiveArrival</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Env_ReceiveShortageWaiting" name="shortage waiting received">
+      <bpmn:incoming>Env_Flow_ReceiveShortage</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_AfterShortage</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Env_ReceiveArrivalInfo" name="CTN arrival info received">
+      <bpmn:incoming>Env_Flow_ReceiveArrival</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_SendReceipt</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="Env_SendOutboundReceipt" name="send Outbound and Receipt">
+      <bpmn:incoming>Env_Flow_SendReceipt</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ReceiveOutbound</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Env_ReceiveOutboundCtn" name="outbound CTN received">
+      <bpmn:incoming>Env_Flow_ReceiveOutbound</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_End</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="Env_End">
+      <bpmn:incoming>Env_Flow_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Env_Flow_Ask" sourceRef="Env_Start" targetRef="Env_SendAskDepot" />
+    <bpmn:sequenceFlow id="Env_Flow_ReceiveEmpty" sourceRef="Env_SendAskDepot" targetRef="Env_ReceiveEmptyCtn" />
+    <bpmn:sequenceFlow id="Env_Flow_ReceiveShortage" sourceRef="Env_SendAskDepot" targetRef="Env_ReceiveShortageWaiting" />
+    <bpmn:sequenceFlow id="Env_Flow_AfterShortage" sourceRef="Env_ReceiveShortageWaiting" targetRef="Env_ReceiveEmptyCtn" />
+    <bpmn:sequenceFlow id="Env_Flow_ReceiveArrival" sourceRef="Env_ReceiveEmptyCtn" targetRef="Env_ReceiveArrivalInfo" />
+    <bpmn:sequenceFlow id="Env_Flow_SendReceipt" sourceRef="Env_ReceiveArrivalInfo" targetRef="Env_SendOutboundReceipt" />
+    <bpmn:sequenceFlow id="Env_Flow_ReceiveOutbound" sourceRef="Env_SendOutboundReceipt" targetRef="Env_ReceiveOutboundCtn" />
+    <bpmn:sequenceFlow id="Env_Flow_End" sourceRef="Env_ReceiveOutboundCtn" targetRef="Env_End" />
+  </bpmn:process>
+</bpmn:definitions>

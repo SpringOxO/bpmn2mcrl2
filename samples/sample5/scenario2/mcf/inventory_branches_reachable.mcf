@@ -1,0 +1,4 @@
+% Both inventory branches are reachable for some initial Container_Count.
+<true* . c_flow_0gophdd(order_id(1))> true
+&&
+<true* . c_flow_shortage_waiting(order_id(1))> true

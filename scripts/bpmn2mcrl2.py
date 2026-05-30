@@ -122,6 +122,16 @@ def extract_variables(expr):
     reserved = {"true", "false", "and", "or", "Int", "Real", "Bool", "tau", "delta"}
     return {t for t in tokens if t not in reserved and not t.isdigit()}
 
+def parse_data_updates(text):
+    updates = {}
+    if not text:
+        return updates
+    for line in text.splitlines():
+        match = re.search(r"mcrl2:update\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)", line.strip())
+        if match:
+            updates[match.group(1)] = match.group(2).strip()
+    return updates
+
 
 def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     print(f"正在解析 BPMN 协作模型: {bpmn_filepath} ...")
@@ -143,6 +153,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         "has_cycle_timer": False,
         "timer_info": {},
         "all_vars": set(),
+        "continuations": set(),
     }
 
     def node_type(elem):
@@ -209,6 +220,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             "event_definitions": {},
             "timer_info": {},
             "flow_conditions": {},
+            "updates": {},
             "variables": set(),
         }
 
@@ -254,6 +266,18 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                         "is_conditional": "conditionalEventDefinition" in ctx["event_definitions"][eid],
                     }
 
+                documentation = "\n".join(
+                    (doc.text or "").strip()
+                    for doc in elem.findall("bpmn:documentation", ns)
+                    if (doc.text or "").strip()
+                )
+                updates = parse_data_updates(documentation)
+                if updates:
+                    ctx["updates"][eid] = updates
+                    ctx["variables"].update(updates.keys())
+                    for update_expr in updates.values():
+                        ctx["variables"].update(extract_variables(update_expr))
+
             elif tag == "sequenceFlow":
                 src = elem.attrib.get("sourceRef")
                 tgt = elem.attrib.get("targetRef")
@@ -294,8 +318,15 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
 
     vars_list = sorted(list(sync_state["all_vars"]))
     params_def = "".join([f", {v}: Int" for v in vars_list])
-    params_call = "".join([f", {v}" for v in vars_list])
     params_init = "".join([", 0" for _ in vars_list])
+
+    def params_call(var_values=None, variables=None):
+        values = var_values or {}
+        target_vars = sorted(list(variables)) if variables is not None else vars_list
+        return "".join([f", {values.get(v, v)}" for v in target_vars])
+
+    def params_def_for(variables):
+        return "".join([f", {v}: Int" for v in sorted(list(variables))])
 
     part_to_proc = {}
     for part in root.findall(".//bpmn:participant", ns):
@@ -569,12 +600,12 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         initial_args = ["oid", "true"] + ["false" for _ in flags]
         return f"{proc_name}({', '.join(initial_args)})"
 
-    def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None, is_extracted_call=False):
+    def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None, is_extracted_call=False, var_values=None):
         if not node_id or node_id == stop_node:
             return ""
 
         if node_id in ctx.get("extracted_nodes", set()) and not is_extracted_call:
-            return f"proc_{clean_name(node_id)}(oid{params_call})"
+            return f"proc_{clean_name(node_id)}(oid{params_call(var_values, ctx['variables'])})"
 
         visited = set(visited or set())
         if node_id in visited:
@@ -602,7 +633,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                 )
             sub_logic = build_start_scope(inner_ctx, current_proc_id, visited) if inner_ctx else "delta"
             tail = choice([
-                build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
+                build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited), var_values=var_values)
                 for n in next_nodes
             ])
             normal_expr = seq([sub_logic, tail])
@@ -637,13 +668,14 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                     current_proc_id,
                     stop_node=join,
                     visited=set(visited),
+                    var_values=var_values,
                 )
                 sync_state["extra_procs"].append(
                     f"  {b_name}(oid: OrderId{params_def}) = {t_r}(oid) . {seq([b_body, f'{s_sig}(oid)'])} . delta;"
                 )
                 sync_state["init_procs"].append(f"{b_name}(order_id(1){params_init})")
 
-            j_logic = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
+            j_logic = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited), var_values=var_values)
             sync_state["extra_procs"].append(f"  gw_{sid}_handler(oid: OrderId{params_def}) = {seq([f'{r_join}(oid)', j_logic])};")
             sync_state["init_procs"].append(f"gw_{sid}_handler(order_id(1){params_init})")
 
@@ -653,33 +685,46 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             return f"{t_s}(oid) . delta"
 
         if ntype == "exclusiveGateway" and len(next_nodes) > 1:
-            join = find_join(next_nodes, ctx["flows"])
-            branch_stop = join if join else stop_node
             branches = []
             for n in next_nodes:
                 branch_expr = build_expr(
                     n,
                     ctx,
                     current_proc_id,
-                    stop_node=branch_stop,
+                    stop_node=stop_node,
                     visited=set(visited),
+                    var_values=var_values,
                 )
                 cond = ctx["flow_conditions"].get((node_id, n))
                 if cond:
                     branches.append(f"{cond} -> {seq(['tau', branch_expr])}")
                 else:
                     branches.append(seq(["tau", branch_expr]))
-            gateway_expr = choice(branches)
-            if join:
-                tail = build_expr(join, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
-                return seq([gateway_expr, tail])
-            return gateway_expr
+            return choice(branches)
 
         action_expr = make_node_action(node_id, ctx, current_proc_id)
-        tail = choice([
-            build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited))
-            for n in next_nodes
-        ])
+        next_var_values = dict(var_values or {})
+        updates = ctx.get("updates", {}).get(node_id, {})
+        next_var_values.update(updates)
+
+        if updates and next_nodes:
+            cont_name = f"cont_{clean_name(node_id)}"
+            cont_key = (current_proc_id, node_id, stop_node or "")
+            if cont_key not in sync_state["continuations"]:
+                sync_state["continuations"].add(cont_key)
+                cont_tail = choice([
+                    build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited), var_values=None)
+                    for n in next_nodes
+                ])
+                sync_state["extra_procs"].append(
+                    f"  {cont_name}(oid: OrderId{params_def_for(ctx['variables'])}) = {cont_tail};"
+                )
+            tail = f"{cont_name}(oid{params_call(next_var_values, ctx['variables'])})"
+        else:
+            tail = choice([
+                build_expr(n, ctx, current_proc_id, stop_node=stop_node, visited=set(visited), var_values=next_var_values)
+                for n in next_nodes
+            ])
         normal_expr = seq([action_expr, tail])
 
         return with_boundary_alternatives(
