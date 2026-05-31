@@ -1,1 +1,0 @@
-﻿[true* . fill_out_certificate_of_entrustment(order_id(1))] mu X . ([!payment(order_id(1))]X && <true>true)
