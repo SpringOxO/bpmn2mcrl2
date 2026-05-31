@@ -1,0 +1,8 @@
+% Customs parallel join: manifest, CT arrival message, declaration, and
+% inspection appointment must all be present before CIQ/inspection can proceed.
+[(!c_flow_1hlthy2(order_id(1))) * . c_sync_join_2(order_id(1))] false &&
+[(!c_flow_03pp6c8(order_id(1))) * . c_sync_join_2(order_id(1))] false &&
+[(!c_flow_0nxnr6v(order_id(1))) * . c_sync_join_2(order_id(1))] false &&
+[(!c_flow_094iscy(order_id(1))) * . c_sync_join_2(order_id(1))] false &&
+[(!c_sync_join_2(order_id(1))) * . gateway_127z0iq(order_id(1))] false &&
+[(!gateway_127z0iq(order_id(1))) * . inspection(order_id(1))] false

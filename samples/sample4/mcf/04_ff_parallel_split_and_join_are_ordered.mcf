@@ -1,0 +1,6 @@
+% Freight Forwarder parallel split/join: both branches must complete before the
+% join and the post-join gateway.
+[(!c_flow_195pecy(order_id(1))) * . c_sync_join_1(order_id(1))] false &&
+[(!c_flow_0fojk1s(order_id(1))) * . c_sync_join_1(order_id(1))] false &&
+[(!c_sync_join_1(order_id(1))) * . gateway_15l9l3p(order_id(1))] false &&
+[(!gateway_15l9l3p(order_id(1))) * . c_flow_0r5ycn3(order_id(1))] false

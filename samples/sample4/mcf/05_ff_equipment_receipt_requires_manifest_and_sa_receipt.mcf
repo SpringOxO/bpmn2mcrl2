@@ -1,0 +1,5 @@
+% FF can send the equipment receipt to Transport only after SA has sent both the
+% manifest and the equipment receipt to FF.
+[(!c_flow_0v8q7w6(order_id(1))) * . c_flow_0r5ycn3(order_id(1))] false &&
+[(!c_flow_130u4ss(order_id(1))) * . c_flow_0r5ycn3(order_id(1))] false &&
+[true* . c_flow_0r5ycn3(order_id(1))] <true* . event_1vcgyyd(order_id(1))> true

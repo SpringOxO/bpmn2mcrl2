@@ -1,0 +1,7 @@
+% The deficient branch must be reachable, and every reachable state must still
+% be able to reach the settled end event in this bounded finance scenario.
+<true* . c_balance_reminder(order_id(1))> true
+&&
+<true* . payment_settled(order_id(1))> true
+&&
+<true* . c_payment_settled_notice(order_id(1))> true

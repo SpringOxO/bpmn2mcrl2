@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_OwnerPaymentReconciliation" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_OwnerPaymentReconciliation">
+    <bpmn:participant id="Participant_Owner" name="Owner" processRef="Process_OwnerPaymentReconciliation" />
+    <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_EnvironmentFinance" />
+    <bpmn:messageFlow id="Flow_Statement" name="amount statement" sourceRef="Env_SendAmountStatement" targetRef="Event_ReceiveAmountStatement" />
+    <bpmn:messageFlow id="Flow_Reminder" name="balance reminder" sourceRef="Activity_RemindBalance" targetRef="Env_ReceiveReminder" />
+    <bpmn:messageFlow id="Flow_AdditionalPayment" name="additional payment" sourceRef="Env_SendAdditionalPayment" targetRef="Event_ReceiveAdditionalPayment" />
+    <bpmn:messageFlow id="Flow_SettledNotice" name="payment settled notice" sourceRef="Activity_NotifySettled" targetRef="Env_ReceiveSettledNotice" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_OwnerPaymentReconciliation" name="Owner payment reconciliation" isExecutable="false">
+    <bpmn:dataObject id="DataObject_AmountDue" name="Amount_Due" />
+    <bpmn:dataObject id="DataObject_AmountPaid" name="Amount_Paid" />
+    <bpmn:dataObject id="DataObject_CurrentPayment" name="Current_Payment" />
+
+    <bpmn:startEvent id="Event_ReceiveAmountStatement" name="receive Amount_Due and Amount_Paid">
+      <bpmn:outgoing>Flow_ToRecordStatement</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Activity_RecordStatement" name="record amount statement">
+      <bpmn:documentation>mcrl2:update Amount_Due = 3
+mcrl2:update Amount_Paid = 0
+mcrl2:update Current_Payment = 1</bpmn:documentation>
+      <bpmn:incoming>Flow_ToRecordStatement</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInitialPayment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Activity_1p1hn9r" name="pay freight charges">
+      <bpmn:documentation>mcrl2:update Amount_Paid = Amount_Paid + Current_Payment</bpmn:documentation>
+      <bpmn:incoming>Flow_ToInitialPayment</bpmn:incoming>
+      <bpmn:incoming>Flow_ToRetryPayment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPaymentGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_PaymentEnough" name="Amount_Paid enough?">
+      <bpmn:incoming>Flow_ToPaymentGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentEnough</bpmn:outgoing>
+      <bpmn:outgoing>Flow_PaymentShort</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Activity_RemindBalance" name="remind balance">
+      <bpmn:incoming>Flow_PaymentShort</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAdditionalPaymentWait</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Event_ReceiveAdditionalPayment" name="receive additional payment">
+      <bpmn:incoming>Flow_ToAdditionalPaymentWait</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRetryPayment</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Activity_NotifySettled" name="notify payment settled">
+      <bpmn:incoming>Flow_PaymentEnough</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPaymentSettled</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="Event_PaymentSettled" name="payment settled">
+      <bpmn:incoming>Flow_ToPaymentSettled</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_ToRecordStatement" sourceRef="Event_ReceiveAmountStatement" targetRef="Activity_RecordStatement" />
+    <bpmn:sequenceFlow id="Flow_ToInitialPayment" sourceRef="Activity_RecordStatement" targetRef="Activity_1p1hn9r" />
+    <bpmn:sequenceFlow id="Flow_ToPaymentGateway" sourceRef="Activity_1p1hn9r" targetRef="Gateway_PaymentEnough" />
+    <bpmn:sequenceFlow id="Flow_PaymentEnough" name="Amount_Paid &gt;= Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_NotifySettled">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${Amount_Paid &gt;= Amount_Due}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_PaymentShort" name="Amount_Paid &lt; Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_RemindBalance">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${Amount_Paid &lt; Amount_Due}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToAdditionalPaymentWait" sourceRef="Activity_RemindBalance" targetRef="Event_ReceiveAdditionalPayment" />
+    <bpmn:sequenceFlow id="Flow_ToRetryPayment" sourceRef="Event_ReceiveAdditionalPayment" targetRef="Activity_1p1hn9r" />
+    <bpmn:sequenceFlow id="Flow_ToPaymentSettled" sourceRef="Activity_NotifySettled" targetRef="Event_PaymentSettled" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_EnvironmentFinance" name="Environment finance" isExecutable="false">
+    <bpmn:startEvent id="Env_Start">
+      <bpmn:outgoing>Env_Flow_ToStatement</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Env_SendAmountStatement" name="return Amount_Due and Amount_Paid">
+      <bpmn:incoming>Env_Flow_ToStatement</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ToWaitOwner</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Env_Gateway_WaitOwner" name="wait for owner update">
+      <bpmn:incoming>Env_Flow_ToWaitOwner</bpmn:incoming>
+      <bpmn:incoming>Env_Flow_BackToWaitOwner</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ToReminder</bpmn:outgoing>
+      <bpmn:outgoing>Env_Flow_ToSettledNotice</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:intermediateCatchEvent id="Env_ReceiveReminder" name="receive balance reminder">
+      <bpmn:incoming>Env_Flow_ToReminder</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_ToAdditionalPayment</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="Env_SendAdditionalPayment" name="initiate additional payment">
+      <bpmn:incoming>Env_Flow_ToAdditionalPayment</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_BackToWaitOwner</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Env_ReceiveSettledNotice" name="receive payment settled notice">
+      <bpmn:incoming>Env_Flow_ToSettledNotice</bpmn:incoming>
+      <bpmn:outgoing>Env_Flow_End</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:endEvent id="Env_End">
+      <bpmn:incoming>Env_Flow_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Env_Flow_ToStatement" sourceRef="Env_Start" targetRef="Env_SendAmountStatement" />
+    <bpmn:sequenceFlow id="Env_Flow_ToWaitOwner" sourceRef="Env_SendAmountStatement" targetRef="Env_Gateway_WaitOwner" />
+    <bpmn:sequenceFlow id="Env_Flow_ToReminder" sourceRef="Env_Gateway_WaitOwner" targetRef="Env_ReceiveReminder" />
+    <bpmn:sequenceFlow id="Env_Flow_ToAdditionalPayment" sourceRef="Env_ReceiveReminder" targetRef="Env_SendAdditionalPayment" />
+    <bpmn:sequenceFlow id="Env_Flow_BackToWaitOwner" sourceRef="Env_SendAdditionalPayment" targetRef="Env_Gateway_WaitOwner" />
+    <bpmn:sequenceFlow id="Env_Flow_ToSettledNotice" sourceRef="Env_Gateway_WaitOwner" targetRef="Env_ReceiveSettledNotice" />
+    <bpmn:sequenceFlow id="Env_Flow_End" sourceRef="Env_ReceiveSettledNotice" targetRef="Env_End" />
+  </bpmn:process>
+</bpmn:definitions>

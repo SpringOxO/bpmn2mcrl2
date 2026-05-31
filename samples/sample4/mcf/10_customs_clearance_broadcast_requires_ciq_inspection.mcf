@@ -1,0 +1,8 @@
+% Customs clearance broadcast must be after CIQ and inspection, and the CB
+% clearance message must precede the CT clearance message.
+[(!ciq(order_id(1))) * . inspection(order_id(1))] false &&
+[(!inspection(order_id(1))) * . c_flow_0ya1w82(order_id(1))] false &&
+[(!c_flow_0ya1w82(order_id(1))) * . c_flow_19pg8ln(order_id(1))] false &&
+[(!c_flow_19pg8ln(order_id(1))) * . event_1n9wr7w(order_id(1))] false &&
+[true* . inspection(order_id(1))]
+  <true* . c_flow_0ya1w82(order_id(1)) . true* . c_flow_19pg8ln(order_id(1)) . true* . event_1n9wr7w(order_id(1))> true

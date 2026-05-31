@@ -1,0 +1,7 @@
+% Container Terminal parallel join: manifest, ship arrival, and outbound CTN
+% must all arrive before the join, gateway, and load action.
+[(!c_flow_082nirl(order_id(1))) * . c_sync_join_3(order_id(1))] false &&
+[(!c_flow_0hjjf9n(order_id(1))) * . c_sync_join_3(order_id(1))] false &&
+[(!c_flow_01n34zt(order_id(1))) * . c_sync_join_3(order_id(1))] false &&
+[(!c_sync_join_3(order_id(1))) * . gateway_10irkpy(order_id(1))] false &&
+[(!gateway_10irkpy(order_id(1))) * . load_ctn(order_id(1))] false
