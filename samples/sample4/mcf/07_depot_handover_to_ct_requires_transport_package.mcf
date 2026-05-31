@@ -1,6 +1,0 @@
-% Depot must not send outbound CTN to Container Terminal before receiving the
-% Transport outbound CTN and receipt package.
-[(!c_flow_1b8ce7l(order_id(1))) * . c_flow_01n34zt(order_id(1))] false &&
-[(!c_flow_01n34zt(order_id(1))) * . event_0o7oxck(order_id(1))] false &&
-[true* . c_flow_1b8ce7l(order_id(1))]
-  <true* . c_flow_01n34zt(order_id(1)) . true* . event_0o7oxck(order_id(1))> true

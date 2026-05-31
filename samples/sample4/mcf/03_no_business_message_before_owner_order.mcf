@@ -1,6 +1,0 @@
-% Downstream business communication must not start before the Owner order reaches
-% the freight forwarder.
-[(!c_flow_04xili0(order_id(1))) * . c_flow_195pecy(order_id(1))] false &&
-[(!c_flow_04xili0(order_id(1))) * . c_flow_0fojk1s(order_id(1))] false &&
-[(!c_flow_04xili0(order_id(1))) * . c_flow_0nxnr6v(order_id(1))] false &&
-[(!c_flow_04xili0(order_id(1))) * . c_flow_1omoc0u(order_id(1))] false

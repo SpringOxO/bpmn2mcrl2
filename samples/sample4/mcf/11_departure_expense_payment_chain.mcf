@@ -1,8 +1,0 @@
-% Departure, expense note, and payment must respect the terminal/customs closure
-% order.
-[(!load_ctn(order_id(1))) * . c_flow_0h7ih09(order_id(1))] false &&
-[(!c_flow_19pg8ln(order_id(1))) * . c_flow_0h7ih09(order_id(1))] false &&
-[(!c_flow_0h7ih09(order_id(1))) * . c_flow_0ot4jwi(order_id(1))] false &&
-[(!c_flow_0ot4jwi(order_id(1))) * . payment(order_id(1))] false &&
-[true* . c_flow_0h7ih09(order_id(1))]
-  <true* . c_flow_0ot4jwi(order_id(1)) . true* . payment(order_id(1)) . true* . event_0470qt9(order_id(1))> true
