@@ -1,0 +1,111 @@
+% =============================================================================
+% Scenario 1: 报关单据审核与打回重交 (Customs Broker + Environment)
+% =============================================================================
+% 演示的 mCRL2 数据处理特性:
+%   1. 自定义排序 (sort): DocStatus = Valid | Invalid
+%      - 使用结构化枚举类型替代整数，表达业务语义
+%   2. 数据参数化的通信动作:
+%      - 消息动作携带 DocStatus 类型的数据
+%   3. 守卫条件 (guard): 基于自定义排序的分支选择
+%   4. 递归进程: 审核不通过时循环回到申报步骤
+%   5. 活性检测: 验证系统是否可能无限循环 (livelock freedom)
+%
+% 对比基线 mCRL2 (scenario1_baseline.mcrl2):
+%   - 基线将 Valid/Invalid 错误地推导为 Int 变量 (范围 0-10)
+%   - 基线没有自定义 sort，全部使用 Int 参数
+%   - 本增强版使用精确的自定义枚举类型表达文档状态
+% =============================================================================
+
+% ---- 自定义数据类型 ----
+% DocStatus: 文档审核状态，只有两种可能的取值
+sort DocStatus = struct Valid | Invalid;
+
+% OrderId: 保持与基线一致，用于标识通信实例
+sort OrderId = struct order_id(pid: Pos);
+
+% ---- 动作声明 ----
+% 重要: comm 同步要求 s_ 和 r_ 动作类型完全一致
+%   c_document_status 也必须携带 DocStatus 以匹配同步类型
+act
+  % 通信动作 (c_*) - 携带与 s_/r_ 相同的数据类型
+  c_declaration, c_supplement : OrderId;
+  c_document_status : OrderId # DocStatus;
+  % 内部任务动作
+  declaration_accepted, process_completed : OrderId;
+  % 发送与接收动作 (s_*/r_*) - 类型必须成对一致
+  s_declaration, r_declaration, s_supplement, r_supplement : OrderId;
+  s_document_status, r_document_status : OrderId # DocStatus;
+
+% ---- 进程定义 ----
+% process_cb: Customs Broker 主进程
+%   参数: oid - 订单标识符
+%   功能: 申报 -> 接收审核结果 -> 通过则结束, 不通过则补充材料后重新申报
+proc
+  process_cb(oid: OrderId) =
+    % Step 1: 发送报关单给 Environment
+    s_declaration(oid) .
+    % Step 2: 接收 Environment 返回的文档状态 (携带 DocStatus 数据)
+    %   使用 sum 绑定 status 变量以接收数据
+    (sum status: DocStatus . r_document_status(oid, status) .
+    % Step 3: 独占网关 - 根据 status 值做出分支决策
+    (
+      % 分支 A: status == Valid -> 文档通过, 申报完成
+      (status == Valid) -> tau .
+        declaration_accepted(oid) . process_completed(oid) . delta
+      +
+      % 分支 B: status == Invalid -> 补充材料, 递归回到申报步骤
+      (status == Invalid) -> tau .
+        s_supplement(oid) . process_cb(oid)
+    ));
+
+  % Environment 进程: 模拟外部环境的行为
+  %   接收 Customs Broker 发送的消息, 并以适当的 DocStatus 值响应
+  env(oid: OrderId) =
+    % 接收报关单, 然后决定返回 Valid 还是 Invalid
+    r_declaration(oid) .
+    (
+      % 非确定性选择: 返回 Valid 通过审核
+      s_document_status(oid, Valid) . delta
+      +
+      % 或者返回 Invalid 要求补充材料
+      s_document_status(oid, Invalid) . delta
+    )
+    +
+    % 也处理补充材料的情况 (递归调用中的消息)
+    r_supplement(oid) .
+    (
+      % 补充后可能通过
+      s_document_status(oid, Valid) . delta
+      +
+      % 也可能再次打回 (模拟多次打回场景)
+      s_document_status(oid, Invalid) . delta
+    );
+
+% ---- 初始化 ----
+% 使用 comm 将 s_ 和 r_ 动作同步为 c_ 动作, 实现通信闭合
+init
+  allow({c_declaration, c_document_status, c_supplement, declaration_accepted, process_completed},
+    comm({
+      s_declaration | r_declaration -> c_declaration,
+      s_document_status | r_document_status -> c_document_status,
+      s_supplement | r_supplement -> c_supplement
+    },
+      process_cb(order_id(1)) || env(order_id(1))
+    )
+  );
+
+% =============================================================================
+% 验证属性 (mCRL2 mu-calculus 公式)
+% =============================================================================
+
+% 属性 1: 可达性 - 申报可能被接受 (declaration_accepted 动作可达)
+%   <true*.declaration_accepted>true
+%   含义: 存在一条路径使得 declaration_accepted 可以被执行
+
+% 属性 2: 活性 (Livelock Freedom) - 系统不会陷入无限循环而不终止
+%   在 mCRL2 中, 无活锁 = 每个状态都存在一条路径到达终止状态 delta
+%   即系统不会永远停留在非终止状态
+
+% 属性 3: 公平性 - 如果持续返回 Invalid, 系统仍有能力最终接受
+%   [true*] <true*.declaration_accepted>true
+%   含义: 在任何时刻, declaration_accepted 始终可达

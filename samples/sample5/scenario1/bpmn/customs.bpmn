@@ -3,7 +3,7 @@
   <bpmn:collaboration id="Collaboration_Customs_Env">
     <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
     <bpmn:participant id="Participant_Customs" name="Customs" processRef="Process_Customs" />
-    <bpmn:messageFlow id="Flow_msg_submit" name="submit docs" sourceRef="Task_Submit" targetRef="StartEvent_Customs" />
+    <bpmn:messageFlow id="Flow_msg_submit" name="submit docs (CargoType)" sourceRef="Task_Submit" targetRef="StartEvent_Customs" />
     <bpmn:messageFlow id="Flow_msg_pass" name="pass notice" sourceRef="Task_Release" targetRef="CatchEvent_Pass" />
     <bpmn:messageFlow id="Flow_msg_fail" name="fail notice" sourceRef="Task_Detain" targetRef="CatchEvent_Fail" />
   </bpmn:collaboration>

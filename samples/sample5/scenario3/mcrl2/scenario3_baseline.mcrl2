@@ -1,0 +1,20 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_declaration, c_document_status, c_supplement, declaration_accepted, process_completed, r_declaration, r_document_status, r_supplement, s_declaration, s_document_status, s_supplement : OrderId;
+
+proc
+  process_cb(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = proc_activity_declare(oid, Invalid, Valid, status);
+  process_1c1qq3r(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = delta;
+  env_recv_flow_declaration_send(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = r_declaration(oid) . delta;
+  env_send_flow_doc_status_return(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = s_document_status(oid) . delta;
+  env_recv_flow_supplement_send(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = r_supplement(oid) . delta;
+  proc_activity_declare(oid: OrderId, Invalid: Int, Valid: Int, status: Int) = s_declaration(oid) . r_document_status(oid) . ((status == Valid) -> tau + (status == Invalid) -> tau . s_supplement(oid) . proc_activity_declare(oid, Invalid, Valid, status)) . declaration_accepted(oid) . process_completed(oid);
+
+init
+  allow({c_declaration, c_document_status, c_supplement, declaration_accepted, process_completed},
+    comm({s_declaration | r_declaration -> c_declaration, s_document_status | r_document_status -> c_document_status, s_supplement | r_supplement -> c_supplement},
+      env_recv_flow_declaration_send(order_id(1), 0, 0, 0) || env_send_flow_doc_status_return(order_id(1), 0, 0, 0) || env_recv_flow_supplement_send(order_id(1), 0, 0, 0) || (sum Invalid: Int, Valid: Int, status: Int . ((Invalid >= 0 && Invalid <= 10) && (Valid >= 0 && Valid <= 10) && (status >= 0 && status <= 10)) -> process_cb(order_id(1), Invalid, Valid, status)) || (sum Invalid: Int, Valid: Int, status: Int . ((Invalid >= 0 && Invalid <= 10) && (Valid >= 0 && Valid <= 10) && (status >= 0 && status <= 10)) -> process_1c1qq3r(order_id(1), Invalid, Valid, status))
+    )
+  );

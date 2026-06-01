@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_scenario1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <bpmn:collaboration id="Collaboration_scenario1">
+    <bpmn:participant id="Participant_CB" name="Customs Broker" processRef="Process_CB" />
+    <bpmn:participant id="Participant_044r31t" name="Environment" processRef="Process_1c1qq3r" />
+    <bpmn:messageFlow id="Flow_declaration_send" name="Declaration" sourceRef="Activity_declare" targetRef="Participant_044r31t" />
+    <bpmn:messageFlow id="Flow_doc_status_return" name="Document_Status" sourceRef="Participant_044r31t" targetRef="Event_recv_status" />
+    <bpmn:messageFlow id="Flow_supplement_send" name="Supplement" sourceRef="Activity_supplement" targetRef="Participant_044r31t" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_CB" isExecutable="true">
+    <bpmn:startEvent id="Event_start" name="declaration started">
+      <bpmn:outgoing>Flow_to_declare</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Activity_declare" name="declare to customs">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="declare-to-customs" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_declare</bpmn:incoming>
+      <bpmn:incoming>Flow_supplement_to_declare</bpmn:incoming>
+      <bpmn:outgoing>Flow_declare_to_recv</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Event_recv_status" name="Document Status received">
+      <bpmn:incoming>Flow_declare_to_recv</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_gateway</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_status" messageRef="Message_doc_status" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_doc_check" name="Document Valid?">
+      <bpmn:incoming>Flow_to_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Activity_accept" name="declaration accepted">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="declaration-accepted" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_supplement" name="supplement documents">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="supplement-documents" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_invalid</bpmn:incoming>
+      <bpmn:outgoing>Flow_supplement_to_declare</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="Event_end" name="process completed">
+      <bpmn:incoming>Flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_to_declare" sourceRef="Event_start" targetRef="Activity_declare" />
+    <bpmn:sequenceFlow id="Flow_declare_to_recv" sourceRef="Activity_declare" targetRef="Event_recv_status" />
+    <bpmn:sequenceFlow id="Flow_to_gateway" sourceRef="Event_recv_status" targetRef="Gateway_doc_check" />
+    <bpmn:sequenceFlow id="Flow_valid" name="Valid" sourceRef="Gateway_doc_check" targetRef="Activity_accept">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == Valid}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_invalid" name="Invalid" sourceRef="Gateway_doc_check" targetRef="Activity_supplement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == Invalid}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_supplement_to_declare" sourceRef="Activity_supplement" targetRef="Activity_declare" />
+    <bpmn:sequenceFlow id="Flow_to_end" sourceRef="Activity_accept" targetRef="Event_end" />
+  </bpmn:process>
+  <bpmn:process id="Process_1c1qq3r" isExecutable="false">
+    <bpmn:startEvent id="Event_0dxesz3" />
+  </bpmn:process>
+  <bpmn:message id="Message_declaration" name="Message_Declaration" />
+  <bpmn:message id="Message_doc_status" name="Message_Document_Status" />
+  <bpmn:message id="Message_supplement" name="Message_Supplement" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_scenario1">
+    <bpmndi:BPMNPlane id="BPMNPlane_scenario1" bpmnElement="Collaboration_scenario1">
+      <bpmndi:BPMNShape id="Participant_CB_di" bpmnElement="Participant_CB" isHorizontal="true">
+        <dc:Bounds x="190" y="420" width="900" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_start_di" bpmnElement="Event_start">
+        <dc:Bounds x="220" y="530" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_declare_di" bpmnElement="Activity_declare">
+        <dc:Bounds x="310" y="515" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_recv_status_di" bpmnElement="Event_recv_status">
+        <dc:Bounds x="460" y="530" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_doc_check_di" bpmnElement="Gateway_doc_check" isMarkerVisible="true">
+        <dc:Bounds x="540" y="523" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_accept_di" bpmnElement="Activity_accept">
+        <dc:Bounds x="640" y="460" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_supplement_di" bpmnElement="Activity_supplement">
+        <dc:Bounds x="640" y="550" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_end_di" bpmnElement="Event_end">
+        <dc:Bounds x="790" y="472" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_044r31t_di" bpmnElement="Participant_044r31t" isHorizontal="true">
+        <dc:Bounds x="190" y="120" width="900" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0dxesz3_di" bpmnElement="Event_0dxesz3">
+        <dc:Bounds x="220" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_to_declare_di" bpmnElement="Flow_to_declare">
+        <di:waypoint x="256" y="548" />
+        <di:waypoint x="310" y="545" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_declare_to_recv_di" bpmnElement="Flow_declare_to_recv">
+        <di:waypoint x="410" y="545" />
+        <di:waypoint x="460" y="548" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_to_gateway_di" bpmnElement="Flow_to_gateway">
+        <di:waypoint x="496" y="548" />
+        <di:waypoint x="540" y="548" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_valid_di" bpmnElement="Flow_valid">
+        <di:waypoint x="565" y="523" />
+        <di:waypoint x="565" y="490" />
+        <di:waypoint x="640" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_invalid_di" bpmnElement="Flow_invalid">
+        <di:waypoint x="565" y="573" />
+        <di:waypoint x="565" y="580" />
+        <di:waypoint x="640" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_to_end_di" bpmnElement="Flow_to_end">
+        <di:waypoint x="740" y="490" />
+        <di:waypoint x="790" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_supplement_to_declare_di" bpmnElement="Flow_supplement_to_declare">
+        <di:waypoint x="690" y="610" />
+        <di:waypoint x="360" y="610" />
+        <di:waypoint x="360" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_declaration_send_di" bpmnElement="Flow_declaration_send">
+        <di:waypoint x="360" y="515" />
+        <di:waypoint x="360" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_doc_status_return_di" bpmnElement="Flow_doc_status_return">
+        <di:waypoint x="478" y="320" />
+        <di:waypoint x="478" y="530" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_supplement_send_di" bpmnElement="Flow_supplement_send">
+        <di:waypoint x="690" y="550" />
+        <di:waypoint x="690" y="320" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

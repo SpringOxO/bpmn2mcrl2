@@ -154,6 +154,8 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         "timer_info": {},
         "all_vars": set(),
         "continuations": set(),
+        "msg_names": set(),
+        "msg_vars": {},
     }
 
     def node_type(elem):
@@ -345,10 +347,34 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         tgt = mflow.attrib.get("targetRef")
         flow_id = clean_name(mflow.attrib.get("id", "msg"))
         raw_message_name = mflow.attrib.get("name")
-        m_name = clean_name(raw_message_name) if raw_message_name else flow_id
+        
+        m_name = flow_id
+        m_vars = []
+        if raw_message_name:
+            match = re.match(r"^([^\(]+)\((.*)\)$", raw_message_name.strip())
+            if match:
+                m_name = clean_name(match.group(1))
+                m_vars = [v.strip() for v in match.group(2).split(",") if v.strip()]
+            else:
+                m_name = clean_name(raw_message_name)
+        
+        sync_state["msg_names"].add(m_name)
+        sync_state["msg_vars"][m_name] = m_vars
 
         src_proc = part_to_proc.get(src) or node_to_proc.get(src)
         tgt_proc = part_to_proc.get(tgt) or node_to_proc.get(tgt)
+
+        if src_proc and src_proc in process_contexts:
+            process_contexts[src_proc]["variables"].update(m_vars)
+            sync_state["all_vars"].update(m_vars)
+        if tgt_proc and tgt_proc in process_contexts:
+            process_contexts[tgt_proc]["variables"].update(m_vars)
+            sync_state["all_vars"].update(m_vars)
+
+        # Update global vars_list since all_vars changed
+        vars_list = sorted(list(sync_state["all_vars"]))
+        params_def = "".join([f", {v}: Int" for v in vars_list])
+        params_init = "".join([", 0" for _ in vars_list])
 
         sync_state["messages"].append({
             "name": m_name,
@@ -434,7 +460,11 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             for role, m_name in msg_list:
                 msg_action = f"{role}_{m_name}"
                 sync_state["used_actions"].add(msg_action)
-                msg_actions_with_name.append((m_name, f"{msg_action}(oid)"))
+                
+                m_vars = sync_state["msg_vars"].get(m_name, [])
+                var_args = "".join([f", {v}" for v in m_vars])
+                
+                msg_actions_with_name.append((m_name, f"{msg_action}(oid{var_args})"))
             
             # 根据消息名字典序排序，确保通信双方握手顺序绝对一致
             msg_actions_with_name.sort(key=lambda x: x[0])
@@ -831,6 +861,24 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
     allow_acts = [a for a in final_declarations if not a.startswith(forbidden_prefixes)]
     init_body = " || ".join(sync_state["init_procs"]) if sync_state["init_procs"] else "delta"
 
+    act_lines = []
+    # 找出带有数据的通信动作
+    act_with_data = []
+    for m_name, m_vars in sync_state.get("msg_vars", {}).items():
+        if m_vars:
+            payload_sorts = " # ".join(["Int"] * len(m_vars))
+            acts = [a for a in final_declarations if a == f"s_{m_name}" or a == f"r_{m_name}" or a == f"c_{m_name}"]
+            if acts:
+                act_lines.append(f"  {', '.join(acts)} : OrderId # {payload_sorts};")
+                act_with_data.extend(acts)
+                
+    # 剩下的普通动作
+    normal_acts = [a for a in final_declarations if a not in act_with_data]
+    if normal_acts:
+        act_lines.append(f"  {', '.join(normal_acts)} : OrderId;")
+        
+    act_block = "\n".join(act_lines)
+
     if sync_state["rules"]:
         # 将 rules 列表转化为集合 (set) 进行去重，再转化为列表排序，保证输出稳定性
         unique_rules = sorted(list(set(sync_state["rules"])))
@@ -850,7 +898,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
 sort OrderId = struct order_id(pid: Pos);
 
 act
-  {', '.join(final_declarations)} : OrderId;
+{act_block}
 
 proc
 {chr(10).join(main_procs_code)}
@@ -864,7 +912,7 @@ init
 sort OrderId = struct order_id(pid: Pos);
 
 act
-  {', '.join(final_declarations)} : OrderId;
+{act_block}
 
 proc
 {chr(10).join(main_procs_code)}
@@ -894,12 +942,12 @@ if __name__ == "__main__":
     if args.input_file:
         input_file = Path(args.input_file)
     else:
-        input_file = project_root / "samples" / "sample3" / "camunda" / "pizza-collaboration.bpmn"
+        input_file = project_root / "samples" / "sample5" / "bpmn" / "scene1_customs.bpmn"
         
     if args.output_file:
         output_file = Path(args.output_file)
     else:
-        output_file = project_root / "samples" / "sample3" / "mcrl2" / "pizza-collaboration_output.mcrl2"
+        output_file = project_root / "samples" / "sample5" / "mcrl2" / "scene1_customs_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
