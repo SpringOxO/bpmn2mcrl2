@@ -2,7 +2,7 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Sample5_Scenario2" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="Collaboration_DepotInventory">
     <bpmn:participant id="Participant_Depot" name="Depot" processRef="Process_DepotInventory" />
-    <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
+    <bpmn:participant id="Participant_Environment" name="Environment (SA / Transport / CT)" processRef="Process_Environment" />
     <bpmn:messageFlow id="Flow_0d09yx1" sourceRef="Env_SendAskDepot" targetRef="Event_0v0liaj" />
     <bpmn:messageFlow id="Flow_0gophdd" sourceRef="Activity_15hjzys" targetRef="Env_ReceiveEmptyCtn" />
     <bpmn:messageFlow id="Flow_0jgf3p7" sourceRef="Activity_0516o4k" targetRef="Env_ReceiveArrivalInfo" />
@@ -19,30 +19,30 @@
       <bpmn:outgoing>Flow_CheckInventory</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <bpmn:serviceTask id="Activity_CheckInventory" name="check container inventory">
+    <bpmn:serviceTask id="Activity_CheckInventory" name="check empty CTN inventory">
       <bpmn:incoming>Flow_CheckInventory</bpmn:incoming>
       <bpmn:outgoing>Flow_ToInventoryGateway</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:exclusiveGateway id="Gateway_InventoryAvailable" name="Container_Count available?">
+    <bpmn:exclusiveGateway id="Gateway_InventoryAvailable" name="empty CTN available?">
       <bpmn:incoming>Flow_ToInventoryGateway</bpmn:incoming>
       <bpmn:incoming>Flow_RetryAfterRestock</bpmn:incoming>
       <bpmn:outgoing>Flow_InventoryEnough</bpmn:outgoing>
       <bpmn:outgoing>Flow_InventoryEmpty</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
-    <bpmn:serviceTask id="Activity_15hjzys" name="send Empty CTN to Transport">
+    <bpmn:serviceTask id="Activity_15hjzys" name="send Empty CTN to Transport / count - 1">
       <bpmn:documentation>mcrl2:update Container_Count = Container_Count - 1</bpmn:documentation>
       <bpmn:incoming>Flow_InventoryEnough</bpmn:incoming>
       <bpmn:outgoing>Flow_002acvn</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:serviceTask id="Activity_SendShortageWaiting" name="send shortage waiting message">
+    <bpmn:serviceTask id="Activity_SendShortageWaiting" name="notify SA: empty CTN shortage">
       <bpmn:incoming>Flow_InventoryEmpty</bpmn:incoming>
       <bpmn:outgoing>Flow_ToRestockTimer</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:intermediateCatchEvent id="Event_WaitRestock" name="wait for restock">
+    <bpmn:intermediateCatchEvent id="Event_WaitRestock" name="wait for empty CTN restock">
       <bpmn:incoming>Flow_ToRestockTimer</bpmn:incoming>
       <bpmn:outgoing>Flow_Restock</bpmn:outgoing>
       <bpmn:timerEventDefinition id="TimerEventDefinition_WaitRestock">
@@ -50,7 +50,7 @@
       </bpmn:timerEventDefinition>
     </bpmn:intermediateCatchEvent>
 
-    <bpmn:serviceTask id="Activity_RestockContainer" name="restock container">
+    <bpmn:serviceTask id="Activity_RestockContainer" name="restock empty CTN / count + 1">
       <bpmn:documentation>mcrl2:update Container_Count = Container_Count + 1</bpmn:documentation>
       <bpmn:incoming>Flow_Restock</bpmn:incoming>
       <bpmn:outgoing>Flow_RetryAfterRestock</bpmn:outgoing>
@@ -92,33 +92,33 @@
     <bpmn:sequenceFlow id="Flow_019avnj" sourceRef="Activity_10s7b1e" targetRef="Event_0o7oxck" />
   </bpmn:process>
 
-  <bpmn:process id="Process_Environment" name="Environment" isExecutable="false">
+  <bpmn:process id="Process_Environment" name="Environment (SA / Transport / CT)" isExecutable="false">
     <bpmn:startEvent id="Env_Start">
       <bpmn:outgoing>Env_Flow_Ask</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:serviceTask id="Env_SendAskDepot" name="ask Depot for CTN">
+    <bpmn:serviceTask id="Env_SendAskDepot" name="SA: ask Depot for CTN">
       <bpmn:incoming>Env_Flow_Ask</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ReceiveEmpty</bpmn:outgoing>
       <bpmn:outgoing>Env_Flow_ReceiveShortage</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:intermediateCatchEvent id="Env_ReceiveEmptyCtn" name="empty CTN received">
+    <bpmn:intermediateCatchEvent id="Env_ReceiveEmptyCtn" name="Transport: Empty CTN received">
       <bpmn:incoming>Env_Flow_ReceiveEmpty</bpmn:incoming>
       <bpmn:incoming>Env_Flow_AfterShortage</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ReceiveArrival</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-    <bpmn:intermediateCatchEvent id="Env_ReceiveShortageWaiting" name="shortage waiting received">
+    <bpmn:intermediateCatchEvent id="Env_ReceiveShortageWaiting" name="SA: shortage waiting received">
       <bpmn:incoming>Env_Flow_ReceiveShortage</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_AfterShortage</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-    <bpmn:intermediateCatchEvent id="Env_ReceiveArrivalInfo" name="CTN arrival info received">
+    <bpmn:intermediateCatchEvent id="Env_ReceiveArrivalInfo" name="SA: CTN arrival info received">
       <bpmn:incoming>Env_Flow_ReceiveArrival</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_SendReceipt</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-    <bpmn:serviceTask id="Env_SendOutboundReceipt" name="send Outbound and Receipt">
+    <bpmn:serviceTask id="Env_SendOutboundReceipt" name="Transport: send Outbound and Receipt">
       <bpmn:incoming>Env_Flow_SendReceipt</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ReceiveOutbound</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:intermediateCatchEvent id="Env_ReceiveOutboundCtn" name="outbound CTN received">
+    <bpmn:intermediateCatchEvent id="Env_ReceiveOutboundCtn" name="CT: Outbound CTN received">
       <bpmn:incoming>Env_Flow_ReceiveOutbound</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_End</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
@@ -134,4 +134,183 @@
     <bpmn:sequenceFlow id="Env_Flow_ReceiveOutbound" sourceRef="Env_SendOutboundReceipt" targetRef="Env_ReceiveOutboundCtn" />
     <bpmn:sequenceFlow id="Env_Flow_End" sourceRef="Env_ReceiveOutboundCtn" targetRef="Env_End" />
   </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_DepotInventory">
+    <bpmndi:BPMNPlane id="BPMNPlane_DepotInventory" bpmnElement="Collaboration_DepotInventory">
+      <bpmndi:BPMNShape id="Participant_Environment_di" bpmnElement="Participant_Environment" isHorizontal="true">
+        <dc:Bounds x="80" y="80" width="1260" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Depot_di" bpmnElement="Participant_Depot" isHorizontal="true">
+        <dc:Bounds x="80" y="380" width="1260" height="360" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Env_Start_di" bpmnElement="Env_Start">
+        <dc:Bounds x="130" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_SendAskDepot_di" bpmnElement="Env_SendAskDepot">
+        <dc:Bounds x="220" y="150" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveEmptyCtn_di" bpmnElement="Env_ReceiveEmptyCtn">
+        <dc:Bounds x="440" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveShortageWaiting_di" bpmnElement="Env_ReceiveShortageWaiting">
+        <dc:Bounds x="440" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveArrivalInfo_di" bpmnElement="Env_ReceiveArrivalInfo">
+        <dc:Bounds x="610" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_SendOutboundReceipt_di" bpmnElement="Env_SendOutboundReceipt">
+        <dc:Bounds x="720" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveOutboundCtn_di" bpmnElement="Env_ReceiveOutboundCtn">
+        <dc:Bounds x="900" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_End_di" bpmnElement="Env_End">
+        <dc:Bounds x="1040" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_0v0liaj_di" bpmnElement="Event_0v0liaj">
+        <dc:Bounds x="130" y="532" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_CheckInventory_di" bpmnElement="Activity_CheckInventory">
+        <dc:Bounds x="220" y="510" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_InventoryAvailable_di" bpmnElement="Gateway_InventoryAvailable" isMarkerVisible="true">
+        <dc:Bounds x="390" y="525" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_15hjzys_di" bpmnElement="Activity_15hjzys">
+        <dc:Bounds x="510" y="440" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0516o4k_di" bpmnElement="Activity_0516o4k">
+        <dc:Bounds x="680" y="440" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0n0ighc_di" bpmnElement="Event_0n0ighc">
+        <dc:Bounds x="850" y="462" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_10s7b1e_di" bpmnElement="Activity_10s7b1e">
+        <dc:Bounds x="940" y="440" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0o7oxck_di" bpmnElement="Event_0o7oxck">
+        <dc:Bounds x="1140" y="462" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_SendShortageWaiting_di" bpmnElement="Activity_SendShortageWaiting">
+        <dc:Bounds x="510" y="620" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_WaitRestock_di" bpmnElement="Event_WaitRestock">
+        <dc:Bounds x="700" y="642" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_RestockContainer_di" bpmnElement="Activity_RestockContainer">
+        <dc:Bounds x="790" y="620" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataObjectReference_ContainerCount_di" bpmnElement="DataObjectReference_ContainerCount">
+        <dc:Bounds x="245" y="630" width="36" height="50" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Env_Flow_Ask_di" bpmnElement="Env_Flow_Ask">
+        <di:waypoint x="166" y="190" />
+        <di:waypoint x="220" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ReceiveEmpty_di" bpmnElement="Env_Flow_ReceiveEmpty">
+        <di:waypoint x="330" y="180" />
+        <di:waypoint x="440" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ReceiveShortage_di" bpmnElement="Env_Flow_ReceiveShortage">
+        <di:waypoint x="330" y="210" />
+        <di:waypoint x="440" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_AfterShortage_di" bpmnElement="Env_Flow_AfterShortage">
+        <di:waypoint x="458" y="242" />
+        <di:waypoint x="458" y="168" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ReceiveArrival_di" bpmnElement="Env_Flow_ReceiveArrival">
+        <di:waypoint x="476" y="150" />
+        <di:waypoint x="610" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_SendReceipt_di" bpmnElement="Env_Flow_SendReceipt">
+        <di:waypoint x="646" y="150" />
+        <di:waypoint x="720" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ReceiveOutbound_di" bpmnElement="Env_Flow_ReceiveOutbound">
+        <di:waypoint x="840" y="150" />
+        <di:waypoint x="900" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_End_di" bpmnElement="Env_Flow_End">
+        <di:waypoint x="936" y="150" />
+        <di:waypoint x="1040" y="150" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_CheckInventory_di" bpmnElement="Flow_CheckInventory">
+        <di:waypoint x="166" y="550" />
+        <di:waypoint x="220" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToInventoryGateway_di" bpmnElement="Flow_ToInventoryGateway">
+        <di:waypoint x="340" y="550" />
+        <di:waypoint x="390" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_InventoryEnough_di" bpmnElement="Flow_InventoryEnough">
+        <di:waypoint x="415" y="525" />
+        <di:waypoint x="415" y="480" />
+        <di:waypoint x="510" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_InventoryEmpty_di" bpmnElement="Flow_InventoryEmpty">
+        <di:waypoint x="415" y="575" />
+        <di:waypoint x="415" y="660" />
+        <di:waypoint x="510" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRestockTimer_di" bpmnElement="Flow_ToRestockTimer">
+        <di:waypoint x="640" y="660" />
+        <di:waypoint x="700" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Restock_di" bpmnElement="Flow_Restock">
+        <di:waypoint x="736" y="660" />
+        <di:waypoint x="790" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RetryAfterRestock_di" bpmnElement="Flow_RetryAfterRestock">
+        <di:waypoint x="850" y="620" />
+        <di:waypoint x="850" y="570" />
+        <di:waypoint x="440" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_002acvn_di" bpmnElement="Flow_002acvn">
+        <di:waypoint x="630" y="480" />
+        <di:waypoint x="680" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0tldzzb_di" bpmnElement="Flow_0tldzzb">
+        <di:waypoint x="800" y="480" />
+        <di:waypoint x="850" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xjqpvh_di" bpmnElement="Flow_1xjqpvh">
+        <di:waypoint x="886" y="480" />
+        <di:waypoint x="940" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_019avnj_di" bpmnElement="Flow_019avnj">
+        <di:waypoint x="1080" y="480" />
+        <di:waypoint x="1140" y="480" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_0d09yx1_di" bpmnElement="Flow_0d09yx1">
+        <di:waypoint x="275" y="230" />
+        <di:waypoint x="148" y="532" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0gophdd_di" bpmnElement="Flow_0gophdd">
+        <di:waypoint x="570" y="440" />
+        <di:waypoint x="458" y="168" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0jgf3p7_di" bpmnElement="Flow_0jgf3p7">
+        <di:waypoint x="740" y="440" />
+        <di:waypoint x="628" y="168" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1b8ce7l_di" bpmnElement="Flow_1b8ce7l">
+        <di:waypoint x="780" y="190" />
+        <di:waypoint x="868" y="462" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_01n34zt_di" bpmnElement="Flow_01n34zt">
+        <di:waypoint x="1010" y="440" />
+        <di:waypoint x="918" y="168" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_shortage_waiting_di" bpmnElement="Flow_shortage_waiting">
+        <di:waypoint x="575" y="620" />
+        <di:waypoint x="458" y="278" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </bpmn:definitions>

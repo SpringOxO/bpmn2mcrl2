@@ -1,0 +1,20 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_declaration, c_document_status, c_supplement, declaration_accepted, process_completed, r_declaration, r_document_status, r_supplement, s_declaration, s_document_status, s_supplement : OrderId;
+
+proc
+  process_cb(oid: OrderId, status: Int) = proc_activity_declare(oid, status);
+  process_1c1qq3r(oid: OrderId) = delta;
+  env_recv_flow_declaration_send(oid: OrderId, status: Int) = r_declaration(oid) . delta;
+  env_send_flow_doc_status_return(oid: OrderId, status: Int) = s_document_status(oid) . delta;
+  env_recv_flow_supplement_send(oid: OrderId, status: Int) = r_supplement(oid) . delta;
+  proc_activity_declare(oid: OrderId, status: Int) = s_declaration(oid) . r_document_status(oid) . ((status == 1) -> tau . declaration_accepted(oid) . process_completed(oid) + (status == 0) -> tau . s_supplement(oid) . proc_activity_declare(oid, status));
+
+init
+  allow({c_declaration, c_document_status, c_supplement, declaration_accepted, process_completed},
+    comm({s_declaration | r_declaration -> c_declaration, s_document_status | r_document_status -> c_document_status, s_supplement | r_supplement -> c_supplement},
+      env_recv_flow_declaration_send(order_id(1), 0) || env_send_flow_doc_status_return(order_id(1), 0) || env_recv_flow_supplement_send(order_id(1), 0) || (sum status: Int . ((status >= 0 && status <= 10)) -> process_cb(order_id(1), status)) || process_1c1qq3r(order_id(1))
+    )
+  );

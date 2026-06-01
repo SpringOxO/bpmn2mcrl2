@@ -50,10 +50,10 @@
     <bpmn:sequenceFlow id="Flow_declare_to_recv" sourceRef="Activity_declare" targetRef="Event_recv_status" />
     <bpmn:sequenceFlow id="Flow_to_gateway" sourceRef="Event_recv_status" targetRef="Gateway_doc_check" />
     <bpmn:sequenceFlow id="Flow_valid" name="Valid" sourceRef="Gateway_doc_check" targetRef="Activity_accept">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == Valid}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == 1}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_invalid" name="Invalid" sourceRef="Gateway_doc_check" targetRef="Activity_supplement">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == Invalid}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${status == 0}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_supplement_to_declare" sourceRef="Activity_supplement" targetRef="Activity_declare" />
     <bpmn:sequenceFlow id="Flow_to_end" sourceRef="Activity_accept" targetRef="Event_end" />

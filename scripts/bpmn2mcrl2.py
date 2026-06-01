@@ -942,12 +942,12 @@ if __name__ == "__main__":
     if args.input_file:
         input_file = Path(args.input_file)
     else:
-        input_file = project_root / "samples" / "sample5" / "bpmn" / "scene1_customs.bpmn"
+        input_file = project_root / "samples" / "sample5" / "scenario2" / "bpmn" / "depot_inventory_check.bpmn"
         
     if args.output_file:
         output_file = Path(args.output_file)
     else:
-        output_file = project_root / "samples" / "sample5" / "mcrl2" / "scene1_customs_output.mcrl2"
+        output_file = project_root / "samples" / "sample5" / "scenario2"  / "mcrl2" / "depot_inventory_check_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     

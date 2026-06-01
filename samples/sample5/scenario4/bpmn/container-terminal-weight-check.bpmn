@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  id="Definitions_ContainerTerminalWeightCheck"
-                  targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_ContainerTerminalWeightCheck" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
   <bpmn:collaboration id="Collaboration_ContainerTerminalWeightCheck">
     <bpmn:participant id="Participant_CT" name="Container Terminal" processRef="Process_CT_Weight_Check" />
     <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
     <bpmn:messageFlow id="MessageFlow_WeightData" name="weight data from Environment" sourceRef="Participant_Environment" targetRef="Event_WeightDataReceived" />
     <bpmn:messageFlow id="MessageFlow_RejectLoading" name="reject loading warning to Environment" sourceRef="Activity_SendRejectWarning" targetRef="Participant_Environment" />
   </bpmn:collaboration>
-
   <bpmn:process id="Process_CT_Weight_Check" name="Container Terminal Weight Check" isExecutable="true">
     <bpmn:startEvent id="Event_Start" name="CTN ready for terminal">
       <bpmn:outgoing>Flow_Start_To_ReceiveWeight</bpmn:outgoing>
@@ -45,31 +38,25 @@
     <bpmn:endEvent id="Event_Rejected" name="loading rejected">
       <bpmn:incoming>Flow_Reject_To_End</bpmn:incoming>
     </bpmn:endEvent>
-
     <bpmn:sequenceFlow id="Flow_Start_To_ReceiveWeight" sourceRef="Event_Start" targetRef="Event_WeightDataReceived" />
     <bpmn:sequenceFlow id="Flow_ReceiveWeight_To_Weigh" sourceRef="Event_WeightDataReceived" targetRef="Activity_SafetyWeighing" />
     <bpmn:sequenceFlow id="Flow_Weigh_To_Gateway" sourceRef="Activity_SafetyWeighing" targetRef="Gateway_WeightDecision" />
-    <bpmn:sequenceFlow id="Flow_Compliant" name="weight &lt;= max_limit" sourceRef="Gateway_WeightDecision" targetRef="Activity_LoadCTN">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${weight <= max_limit}]]></bpmn:conditionExpression>
+    <bpmn:sequenceFlow id="Flow_Compliant" name="weight &#60;= 5" sourceRef="Gateway_WeightDecision" targetRef="Activity_LoadCTN">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${weight &lt;= 5}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_Overweight" name="weight &gt; max_limit" sourceRef="Gateway_WeightDecision" targetRef="Activity_SendRejectWarning">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${weight > max_limit}]]></bpmn:conditionExpression>
+    <bpmn:sequenceFlow id="Flow_Overweight" name="weight &#62;5" sourceRef="Gateway_WeightDecision" targetRef="Activity_SendRejectWarning">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${weight &gt; 5}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_Load_To_End" sourceRef="Activity_LoadCTN" targetRef="Event_Loaded" />
     <bpmn:sequenceFlow id="Flow_Reject_To_End" sourceRef="Activity_SendRejectWarning" targetRef="Event_Rejected" />
   </bpmn:process>
-
   <bpmn:process id="Process_Environment" name="Environment" isExecutable="false">
     <bpmn:startEvent id="Event_Environment" />
   </bpmn:process>
-
   <bpmndi:BPMNDiagram id="BPMNDiagram_ContainerTerminalWeightCheck">
     <bpmndi:BPMNPlane id="BPMNPlane_ContainerTerminalWeightCheck" bpmnElement="Collaboration_ContainerTerminalWeightCheck">
       <bpmndi:BPMNShape id="Shape_Participant_CT" bpmnElement="Participant_CT" isHorizontal="true">
         <dc:Bounds x="160" y="120" width="980" height="240" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Participant_Environment" bpmnElement="Participant_Environment" isHorizontal="true">
-        <dc:Bounds x="160" y="400" width="980" height="120" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Event_Start" bpmnElement="Event_Start">
         <dc:Bounds x="220" y="222" width="36" height="36" />
@@ -95,9 +82,6 @@
       <bpmndi:BPMNShape id="Shape_Event_Rejected" bpmnElement="Event_Rejected">
         <dc:Bounds x="910" y="287" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Environment" bpmnElement="Event_Environment">
-        <dc:Bounds x="315" y="442" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Flow_Start_To_ReceiveWeight" bpmnElement="Flow_Start_To_ReceiveWeight">
         <di:waypoint x="256" y="240" />
         <di:waypoint x="315" y="240" />
@@ -115,11 +99,17 @@
         <di:waypoint x="675" y="240" />
         <di:waypoint x="675" y="195" />
         <di:waypoint x="710" y="195" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="662" y="208" width="57" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Overweight" bpmnElement="Flow_Overweight">
         <di:waypoint x="615" y="265" />
         <di:waypoint x="615" y="305" />
         <di:waypoint x="710" y="305" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="607" y="275" width="47" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Load_To_End" bpmnElement="Flow_Load_To_End">
         <di:waypoint x="830" y="195" />
@@ -129,6 +119,12 @@
         <di:waypoint x="830" y="305" />
         <di:waypoint x="910" y="305" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Environment" bpmnElement="Participant_Environment" isHorizontal="true">
+        <dc:Bounds x="160" y="400" width="980" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Environment" bpmnElement="Event_Environment">
+        <dc:Bounds x="315" y="442" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_MessageFlow_WeightData" bpmnElement="MessageFlow_WeightData">
         <di:waypoint x="333" y="442" />
         <di:waypoint x="333" y="258" />
