@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import re
 import argparse
+import uuid
 from pathlib import Path
 from collections import deque
 
@@ -335,12 +336,15 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         part_to_proc[part.attrib.get("id")] = part.attrib.get("processRef")
 
     node_to_proc = {}
+    global_node_names = {}
     for process in root.findall(".//bpmn:process", ns):
         p_id = process.attrib.get("id")
         for elem in process.iter():
             tag = node_type(elem)
-            if "id" in elem.attrib and tag != "sequenceFlow":
-                node_to_proc[elem.attrib["id"]] = p_id
+            if "id" in elem.attrib:
+                global_node_names[elem.attrib["id"]] = elem.attrib.get("name", "")
+                if tag != "sequenceFlow":
+                    node_to_proc[elem.attrib["id"]] = p_id
 
     for mflow in root.findall(".//bpmn:messageFlow", ns):
         src = mflow.attrib.get("sourceRef")
@@ -348,15 +352,32 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         flow_id = clean_name(mflow.attrib.get("id", "msg"))
         raw_message_name = mflow.attrib.get("name")
         
-        m_name = flow_id
         m_vars = []
-        if raw_message_name:
-            match = re.match(r"^([^\(]+)\((.*)\)$", raw_message_name.strip())
+        doc_elem = mflow.find("bpmn:documentation", ns)
+        if doc_elem is not None and doc_elem.text:
+            match = re.search(r"mcrl2:payload\s+(.+)", doc_elem.text)
             if match:
-                m_name = clean_name(match.group(1))
-                m_vars = [v.strip() for v in match.group(2).split(",") if v.strip()]
+                m_vars = [v.strip() for v in match.group(1).split(",") if v.strip()]
+
+        if raw_message_name:
+            m_name = clean_name(raw_message_name)
+        else:
+            # 推断未命名消息流的名称
+            src_name = clean_name(global_node_names.get(src, ""))
+            tgt_name = clean_name(global_node_names.get(tgt, ""))
+            if src_name != "unnamed_action" and tgt_name != "unnamed_action":
+                m_name = f"{src_name}_to_{tgt_name}"
             else:
-                m_name = clean_name(raw_message_name)
+                m_name = flow_id
+                
+        # 冲突检测与消解
+        original_m_name = m_name
+        counter = 1
+        while m_name in sync_state["msg_names"]:
+            m_name = f"{original_m_name}_{uuid.uuid4().hex[:6]}"
+            counter += 1
+            if counter > 50: # 防死循环兜底
+                break
         
         sync_state["msg_names"].add(m_name)
         sync_state["msg_vars"][m_name] = m_vars
@@ -942,12 +963,12 @@ if __name__ == "__main__":
     if args.input_file:
         input_file = Path(args.input_file)
     else:
-        input_file = project_root / "samples" / "sample5" / "scenario2" / "bpmn" / "depot_inventory_check.bpmn"
+        input_file = project_root / "samples" / "sample5" / "scenario5" / "bpmn" / "owner_payment_reconciliation.bpmn"
         
     if args.output_file:
         output_file = Path(args.output_file)
     else:
-        output_file = project_root / "samples" / "sample5" / "scenario2"  / "mcrl2" / "depot_inventory_check_output.mcrl2"
+        output_file = project_root / "samples" / "sample5" / "scenario5"  / "mcrl2" / "owner_payment_reconciliation_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     

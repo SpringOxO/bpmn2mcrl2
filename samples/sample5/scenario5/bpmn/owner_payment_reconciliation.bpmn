@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_OwnerPaymentReconciliation" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_OwnerPaymentReconciliation" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
   <bpmn:collaboration id="Collaboration_OwnerPaymentReconciliation">
     <bpmn:participant id="Participant_Owner" name="Owner" processRef="Process_OwnerPaymentReconciliation" />
     <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_EnvironmentFinance" />
@@ -8,16 +8,13 @@
     <bpmn:messageFlow id="Flow_AdditionalPayment" name="additional payment" sourceRef="Env_SendAdditionalPayment" targetRef="Event_ReceiveAdditionalPayment" />
     <bpmn:messageFlow id="Flow_SettledNotice" name="payment settled notice" sourceRef="Activity_NotifySettled" targetRef="Env_ReceiveSettledNotice" />
   </bpmn:collaboration>
-
   <bpmn:process id="Process_OwnerPaymentReconciliation" name="Owner payment reconciliation" isExecutable="false">
     <bpmn:dataObject id="DataObject_AmountDue" name="Amount_Due" />
     <bpmn:dataObject id="DataObject_AmountPaid" name="Amount_Paid" />
     <bpmn:dataObject id="DataObject_CurrentPayment" name="Current_Payment" />
-
     <bpmn:startEvent id="Event_ReceiveAmountStatement" name="receive Amount_Due and Amount_Paid">
       <bpmn:outgoing>Flow_ToRecordStatement</bpmn:outgoing>
     </bpmn:startEvent>
-
     <bpmn:serviceTask id="Activity_RecordStatement" name="record amount statement">
       <bpmn:documentation>mcrl2:update Amount_Due = 3
 mcrl2:update Amount_Paid = 0
@@ -25,89 +22,74 @@ mcrl2:update Current_Payment = 1</bpmn:documentation>
       <bpmn:incoming>Flow_ToRecordStatement</bpmn:incoming>
       <bpmn:outgoing>Flow_ToInitialPayment</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:serviceTask id="Activity_1p1hn9r" name="pay freight charges">
       <bpmn:documentation>mcrl2:update Amount_Paid = Amount_Paid + Current_Payment</bpmn:documentation>
       <bpmn:incoming>Flow_ToInitialPayment</bpmn:incoming>
       <bpmn:incoming>Flow_ToRetryPayment</bpmn:incoming>
       <bpmn:outgoing>Flow_ToPaymentGateway</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:exclusiveGateway id="Gateway_PaymentEnough" name="Amount_Paid enough?">
       <bpmn:incoming>Flow_ToPaymentGateway</bpmn:incoming>
       <bpmn:outgoing>Flow_PaymentEnough</bpmn:outgoing>
       <bpmn:outgoing>Flow_PaymentShort</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-
     <bpmn:serviceTask id="Activity_RemindBalance" name="remind balance">
       <bpmn:incoming>Flow_PaymentShort</bpmn:incoming>
       <bpmn:outgoing>Flow_ToAdditionalPaymentWait</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:intermediateCatchEvent id="Event_ReceiveAdditionalPayment" name="receive additional payment">
       <bpmn:incoming>Flow_ToAdditionalPaymentWait</bpmn:incoming>
       <bpmn:outgoing>Flow_ToRetryPayment</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-
     <bpmn:serviceTask id="Activity_NotifySettled" name="notify payment settled">
       <bpmn:incoming>Flow_PaymentEnough</bpmn:incoming>
       <bpmn:outgoing>Flow_ToPaymentSettled</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:endEvent id="Event_PaymentSettled" name="payment settled">
       <bpmn:incoming>Flow_ToPaymentSettled</bpmn:incoming>
     </bpmn:endEvent>
-
     <bpmn:sequenceFlow id="Flow_ToRecordStatement" sourceRef="Event_ReceiveAmountStatement" targetRef="Activity_RecordStatement" />
     <bpmn:sequenceFlow id="Flow_ToInitialPayment" sourceRef="Activity_RecordStatement" targetRef="Activity_1p1hn9r" />
     <bpmn:sequenceFlow id="Flow_ToPaymentGateway" sourceRef="Activity_1p1hn9r" targetRef="Gateway_PaymentEnough" />
-    <bpmn:sequenceFlow id="Flow_PaymentEnough" name="Amount_Paid &gt;= Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_NotifySettled">
+    <bpmn:sequenceFlow id="Flow_PaymentEnough" name="Amount_Paid &#62;= Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_NotifySettled">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${Amount_Paid &gt;= Amount_Due}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_PaymentShort" name="Amount_Paid &lt; Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_RemindBalance">
+    <bpmn:sequenceFlow id="Flow_PaymentShort" name="Amount_Paid &#60; Amount_Due" sourceRef="Gateway_PaymentEnough" targetRef="Activity_RemindBalance">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${Amount_Paid &lt; Amount_Due}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_ToAdditionalPaymentWait" sourceRef="Activity_RemindBalance" targetRef="Event_ReceiveAdditionalPayment" />
     <bpmn:sequenceFlow id="Flow_ToRetryPayment" sourceRef="Event_ReceiveAdditionalPayment" targetRef="Activity_1p1hn9r" />
     <bpmn:sequenceFlow id="Flow_ToPaymentSettled" sourceRef="Activity_NotifySettled" targetRef="Event_PaymentSettled" />
   </bpmn:process>
-
   <bpmn:process id="Process_EnvironmentFinance" name="Environment finance" isExecutable="false">
     <bpmn:startEvent id="Env_Start">
       <bpmn:outgoing>Env_Flow_ToStatement</bpmn:outgoing>
     </bpmn:startEvent>
-
     <bpmn:serviceTask id="Env_SendAmountStatement" name="return Amount_Due and Amount_Paid">
       <bpmn:incoming>Env_Flow_ToStatement</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ToWaitOwner</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:exclusiveGateway id="Env_Gateway_WaitOwner" name="wait for owner update">
       <bpmn:incoming>Env_Flow_ToWaitOwner</bpmn:incoming>
       <bpmn:incoming>Env_Flow_BackToWaitOwner</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ToReminder</bpmn:outgoing>
       <bpmn:outgoing>Env_Flow_ToSettledNotice</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-
     <bpmn:intermediateCatchEvent id="Env_ReceiveReminder" name="receive balance reminder">
       <bpmn:incoming>Env_Flow_ToReminder</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_ToAdditionalPayment</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-
     <bpmn:serviceTask id="Env_SendAdditionalPayment" name="initiate additional payment">
       <bpmn:incoming>Env_Flow_ToAdditionalPayment</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_BackToWaitOwner</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:intermediateCatchEvent id="Env_ReceiveSettledNotice" name="receive payment settled notice">
       <bpmn:incoming>Env_Flow_ToSettledNotice</bpmn:incoming>
       <bpmn:outgoing>Env_Flow_End</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
-
     <bpmn:endEvent id="Env_End">
       <bpmn:incoming>Env_Flow_End</bpmn:incoming>
     </bpmn:endEvent>
-
     <bpmn:sequenceFlow id="Env_Flow_ToStatement" sourceRef="Env_Start" targetRef="Env_SendAmountStatement" />
     <bpmn:sequenceFlow id="Env_Flow_ToWaitOwner" sourceRef="Env_SendAmountStatement" targetRef="Env_Gateway_WaitOwner" />
     <bpmn:sequenceFlow id="Env_Flow_ToReminder" sourceRef="Env_Gateway_WaitOwner" targetRef="Env_ReceiveReminder" />
@@ -116,4 +98,157 @@ mcrl2:update Current_Payment = 1</bpmn:documentation>
     <bpmn:sequenceFlow id="Env_Flow_ToSettledNotice" sourceRef="Env_Gateway_WaitOwner" targetRef="Env_ReceiveSettledNotice" />
     <bpmn:sequenceFlow id="Env_Flow_End" sourceRef="Env_ReceiveSettledNotice" targetRef="Env_End" />
   </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_OwnerPaymentReconciliation">
+      <bpmndi:BPMNShape id="Participant_Owner_di" bpmnElement="Participant_Owner" isHorizontal="true">
+        <dc:Bounds x="160" y="380" width="800" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_ReceiveAmountStatement_di" bpmnElement="Event_ReceiveAmountStatement">
+        <dc:Bounds x="212" y="482" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_RecordStatement_di" bpmnElement="Activity_RecordStatement">
+        <dc:Bounds x="300" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1p1hn9r_di" bpmnElement="Activity_1p1hn9r">
+        <dc:Bounds x="450" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PaymentEnough_di" bpmnElement="Gateway_PaymentEnough" isMarkerVisible="true">
+        <dc:Bounds x="605" y="475" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_RemindBalance_di" bpmnElement="Activity_RemindBalance">
+        <dc:Bounds x="700" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_ReceiveAdditionalPayment_di" bpmnElement="Event_ReceiveAdditionalPayment">
+        <dc:Bounds x="852" y="422" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_NotifySettled_di" bpmnElement="Activity_NotifySettled">
+        <dc:Bounds x="700" y="530" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_PaymentSettled_di" bpmnElement="Event_PaymentSettled">
+        <dc:Bounds x="852" y="552" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToRecordStatement_di" bpmnElement="Flow_ToRecordStatement">
+        <di:waypoint x="248" y="500" />
+        <di:waypoint x="300" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToInitialPayment_di" bpmnElement="Flow_ToInitialPayment">
+        <di:waypoint x="400" y="500" />
+        <di:waypoint x="450" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPaymentGateway_di" bpmnElement="Flow_ToPaymentGateway">
+        <di:waypoint x="550" y="500" />
+        <di:waypoint x="605" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentEnough_di" bpmnElement="Flow_PaymentEnough">
+        <di:waypoint x="630" y="525" />
+        <di:waypoint x="630" y="570" />
+        <di:waypoint x="700" y="570" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="604" y="538" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentShort_di" bpmnElement="Flow_PaymentShort">
+        <di:waypoint x="630" y="475" />
+        <di:waypoint x="630" y="440" />
+        <di:waypoint x="700" y="440" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="607" y="448" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToAdditionalPaymentWait_di" bpmnElement="Flow_ToAdditionalPaymentWait">
+        <di:waypoint x="800" y="440" />
+        <di:waypoint x="852" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRetryPayment_di" bpmnElement="Flow_ToRetryPayment">
+        <di:waypoint x="870" y="422" />
+        <di:waypoint x="870" y="380" />
+        <di:waypoint x="500" y="380" />
+        <di:waypoint x="500" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPaymentSettled_di" bpmnElement="Flow_ToPaymentSettled">
+        <di:waypoint x="800" y="570" />
+        <di:waypoint x="852" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Environment_di" bpmnElement="Participant_Environment" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="800" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_Start_di" bpmnElement="Env_Start">
+        <dc:Bounds x="212" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_SendAmountStatement_di" bpmnElement="Env_SendAmountStatement">
+        <dc:Bounds x="300" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_Gateway_WaitOwner_di" bpmnElement="Env_Gateway_WaitOwner" isMarkerVisible="true">
+        <dc:Bounds x="455" y="155" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveReminder_di" bpmnElement="Env_ReceiveReminder">
+        <dc:Bounds x="562" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_SendAdditionalPayment_di" bpmnElement="Env_SendAdditionalPayment">
+        <dc:Bounds x="650" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_ReceiveSettledNotice_di" bpmnElement="Env_ReceiveSettledNotice">
+        <dc:Bounds x="562" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Env_End_di" bpmnElement="Env_End">
+        <dc:Bounds x="652" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Env_Flow_ToStatement_di" bpmnElement="Env_Flow_ToStatement">
+        <di:waypoint x="248" y="180" />
+        <di:waypoint x="300" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ToWaitOwner_di" bpmnElement="Env_Flow_ToWaitOwner">
+        <di:waypoint x="400" y="180" />
+        <di:waypoint x="455" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ToReminder_di" bpmnElement="Env_Flow_ToReminder">
+        <di:waypoint x="480" y="155" />
+        <di:waypoint x="480" y="120" />
+        <di:waypoint x="562" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ToAdditionalPayment_di" bpmnElement="Env_Flow_ToAdditionalPayment">
+        <di:waypoint x="598" y="120" />
+        <di:waypoint x="650" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_BackToWaitOwner_di" bpmnElement="Env_Flow_BackToWaitOwner">
+        <di:waypoint x="700" y="80" />
+        <di:waypoint x="700" y="50" />
+        <di:waypoint x="480" y="50" />
+        <di:waypoint x="480" y="155" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_ToSettledNotice_di" bpmnElement="Env_Flow_ToSettledNotice">
+        <di:waypoint x="480" y="205" />
+        <di:waypoint x="480" y="250" />
+        <di:waypoint x="562" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Env_Flow_End_di" bpmnElement="Env_Flow_End">
+        <di:waypoint x="598" y="250" />
+        <di:waypoint x="652" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Statement_di" bpmnElement="Flow_Statement">
+        <di:waypoint x="350" y="220" />
+        <di:waypoint x="350" y="351" />
+        <di:waypoint x="230" y="351" />
+        <di:waypoint x="230" y="482" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Reminder_di" bpmnElement="Flow_Reminder">
+        <di:waypoint x="750" y="400" />
+        <di:waypoint x="750" y="269" />
+        <di:waypoint x="580" y="269" />
+        <di:waypoint x="580" y="138" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdditionalPayment_di" bpmnElement="Flow_AdditionalPayment">
+        <di:waypoint x="700" y="160" />
+        <di:waypoint x="700" y="291" />
+        <di:waypoint x="870" y="291" />
+        <di:waypoint x="870" y="422" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SettledNotice_di" bpmnElement="Flow_SettledNotice">
+        <di:waypoint x="750" y="530" />
+        <di:waypoint x="750" y="399" />
+        <di:waypoint x="580" y="399" />
+        <di:waypoint x="580" y="268" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </bpmn:definitions>

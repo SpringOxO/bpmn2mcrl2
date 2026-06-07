@@ -34,6 +34,8 @@
 | **数据判断** | `bpmn:tFormalExpression` | -> | 已完成 |
 | **循环回路** | - | 独立一个进程 | 已完成 |
 | **事件网关** | `bpmn:eventBasedGateway` | 选择操作符 `+` | 已完成 |
+| **跨池数据传输** | `messageflow (DataType)` | 数据传递 | 已完成 |
+| **变量** | `var = var + 1` | 数据传递 | 已完成 |
 
 
 ## 使用方法
