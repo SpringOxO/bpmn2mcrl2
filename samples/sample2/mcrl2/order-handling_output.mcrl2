@@ -1,14 +1,14 @@
-% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
 sort OrderId = struct order_id(pid: Pos);
 
 act
-  archive_invoice, boundary_archive_invoice, create_invoice, endevent_00asnpf, endevent_036eexy, endevent_0q2wrcp, start_order_received : OrderId;
+  archive_invoice, boundary_archive_invoice, create_invoice, endevent_036eexy, endevent_0q2wrcp, start_order_received : OrderId;
 
 proc
-  order_process(oid: OrderId, t: Real) = (tau @ t) . start_order_received(oid) . task_1nbdup3_lifecycle(oid, true, false) . order_process(oid, t + 300);
-  task_1nbdup3_lifecycle(oid: OrderId, active: Bool, invoice_id_present: Bool) = ((create_invoice(oid) . (endevent_036eexy(oid) . (endevent_00asnpf(oid) + ((active) && (true)) -> (boundary_archive_invoice(oid) . archive_invoice(oid) . endevent_0q2wrcp(oid)) <> delta) + ((active) && (true)) -> (boundary_archive_invoice(oid) . archive_invoice(oid) . endevent_0q2wrcp(oid)) <> delta) + ((active) && (invoice_id_present)) -> (boundary_archive_invoice(oid) . archive_invoice(oid) . endevent_0q2wrcp(oid)) <> delta) + ((active) && (invoice_id_present)) -> (boundary_archive_invoice(oid) . archive_invoice(oid) . endevent_0q2wrcp(oid)) <> delta);
+  order_process(oid: OrderId, invoiceId: Int) = start_order_received(oid) . activity_task_1nbdup3(oid, invoiceId, true, false);
+  activity_task_1nbdup3(oid: OrderId, invoiceId: Int, active: Bool, boundaryevent_1y1bvad_done: Bool) = ((create_invoice(oid) . (endevent_036eexy(oid) + ((!boundaryevent_1y1bvad_done && (invoiceId != 0))) -> (boundary_archive_invoice(oid) . activity_task_1nbdup3(oid, invoiceId, false, true) . archive_invoice(oid) . endevent_0q2wrcp(oid))) + ((!boundaryevent_1y1bvad_done && (invoiceId != 0))) -> (boundary_archive_invoice(oid) . activity_task_1nbdup3(oid, invoiceId, false, true) . archive_invoice(oid) . endevent_0q2wrcp(oid))) + ((!boundaryevent_1y1bvad_done && (invoiceId != 0))) -> (boundary_archive_invoice(oid) . activity_task_1nbdup3(oid, invoiceId, false, true) . archive_invoice(oid) . endevent_0q2wrcp(oid)));
 
 init
-  allow({archive_invoice, boundary_archive_invoice, create_invoice, endevent_00asnpf, endevent_036eexy, endevent_0q2wrcp, start_order_received},
-    order_process(order_id(1), 0)
+  allow({archive_invoice, boundary_archive_invoice, create_invoice, endevent_036eexy, endevent_0q2wrcp, start_order_received},
+    (sum invoiceId: Int . ((invoiceId >= 0 && invoiceId <= 10)) -> order_process(order_id(1), invoiceId))
   );

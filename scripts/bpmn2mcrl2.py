@@ -262,6 +262,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                         for condition in elem.findall(".//bpmn:condition", ns)
                         if (condition.text or "").strip()
                     ]
+                    for ct in condition_texts:
+                        ctx["variables"].update(extract_variables(ct))
+                        
                     ctx["boundary_details"][eid] = {
                         "attached_to": attached_to,
                         "cancel_activity": elem.attrib.get("cancelActivity", "true") != "false",
@@ -566,9 +569,9 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                 ))
         return choice(alternatives)
 
-    def build_conditional_boundary_activity(current_id, inner_ctx, ctx, current_proc_id, stop_node, visited):
+    def build_conditional_boundary_activity(subprocess_id, inner_ctx, ctx, current_proc_id, stop_node, visited):
         flags = []
-        for b_id in ctx["boundary_events"].get(current_id, []):
+        for b_id in ctx["boundary_events"].get(subprocess_id, []):
             details = ctx["boundary_details"].get(b_id, {})
             if details.get("is_conditional"):
                 flags.append(clean_name(b_id))
@@ -576,8 +579,13 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         if not flags:
             return "delta"
 
-        proc_name = f"activity_{clean_name(current_id)}"
-        params = ", ".join(["oid: OrderId", "active: Bool"] + [f"{f}_done: Bool" for f in flags])
+        proc_name = f"activity_{clean_name(subprocess_id)}"
+
+        proc_vars = sorted(list(process_contexts[current_proc_id]["variables"]))
+        p_def = "".join([f", {v}: Int" for v in proc_vars])
+        p_call = "".join([f", {v}" for v in proc_vars])
+
+        params = ", ".join([f"oid: OrderId{p_def}", "active: Bool"] + [f"{f}_done: Bool" for f in flags])
 
         def updated_condition_values(triggered_flag, current_values):
             return {k: ("true" if k == triggered_flag else v) for k, v in current_values.items()}
@@ -596,12 +604,14 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
 
             def wrap_conditional_boundaries(expr, current_values):
                 options = [expr]
-                for boundary_id in ctx["boundary_events"].get(node_id, []):
+                for boundary_id in ctx["boundary_events"].get(subprocess_id, []):
                     details = ctx["boundary_details"].get(boundary_id, {})
                     if details.get("is_conditional"):
                         flag_name = clean_name(boundary_id)
                         conditions = details.get("condition_texts", [])
-                        guard = parse_condition(" && ".join(conditions))
+                        base_guard = parse_condition(" && ".join(conditions))
+                        guard = f"(!{flag_name}_done && {base_guard})"
+                        
                         boundary_act = make_node_action(boundary_id, ctx, current_proc_id)
                         cancel = details.get("cancel_activity", True)
 
@@ -611,7 +621,8 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
                             for n in next_nodes
                         ])
                         
-                        args = ["oid", "false" if cancel else "true"] + [current_values[f] for f in flags]
+                        next_values = updated_condition_values(flag_name, current_values)
+                        args = [f"oid{p_call}", "false" if cancel else "true"] + [next_values[f] for f in flags]
                         call_proc = f"{proc_name}({', '.join(args)})"
                         
                         options.append(f"({guard}) -> ({boundary_act} . {seq([call_proc, boundary_tail])})")
@@ -641,14 +652,14 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
             normal = seq([action_expr, inner_successors_expr(current_id, next_values, current_visited)])
             return wrap_conditional_boundaries(normal, values)
 
-        initial_values = {flag: flag for flag in flags}
+        initial_values = {flag: "false" for flag in flags}
         body = choice([
             build_inner_expr(start, initial_values, set())
             for start in inner_ctx["starts"]
         ]) if inner_ctx else "delta"
         sync_state["extra_procs"].append(f"  {proc_name}({params}) = {body};")
 
-        initial_args = ["oid", "true"] + ["false" for _ in flags]
+        initial_args = [f"oid{p_call}", "true"] + ["false" for _ in flags]
         return f"{proc_name}({', '.join(initial_args)})"
 
     def build_expr(node_id, ctx, current_proc_id, stop_node=None, visited=None, is_extracted_call=False, var_values=None):
@@ -963,12 +974,12 @@ if __name__ == "__main__":
     if args.input_file:
         input_file = Path(args.input_file)
     else:
-        input_file = project_root / "samples" / "sample5" / "scenario5" / "bpmn" / "owner_payment_reconciliation.bpmn"
+        input_file = project_root / "samples" / "sample3" / "camunda" / "pizza-collaboration.bpmn"
         
     if args.output_file:
         output_file = Path(args.output_file)
     else:
-        output_file = project_root / "samples" / "sample5" / "scenario5"  / "mcrl2" / "owner_payment_reconciliation_output.mcrl2"
+        output_file = project_root / "samples" / "sample3" / "mcrl2" / "pizza-collaboration_output.mcrl2"
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
