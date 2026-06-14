@@ -1,4 +1,4 @@
 % Both inventory branches are reachable for some initial Container_Count.
-<true* . c_flow_0gophdd(order_id(1))> true
+<true* . c_send_empty_ctn_to_transport___count___1_to_transport__empty_ctn_received(order_id(1), 10)> true
 &&
-<true* . c_flow_shortage_waiting(order_id(1))> true
+<true* . c_notify_sa__empty_ctn_shortage_to_sa__shortage_waiting_received(order_id(1))> true

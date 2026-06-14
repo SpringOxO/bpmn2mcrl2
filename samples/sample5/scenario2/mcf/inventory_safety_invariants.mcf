@@ -1,7 +1,6 @@
-% Data-bound Safety Invariants for Depot Inventory Check (Scenario 2)
-% 使用 pbes2bool -s2 验证
+% Data-bound Safety Invariant for Depot Inventory Check (Scenario 2)
+% Use pbes2bool -s2 when checking this formula.
 %
-% Safety Invariant: 发送空箱时，Container_Count 必定 >= 0
-% （因为只有 Container_Count > 0 时才走这个分支，且发送后 count-1，所以 count >= 0）
+% When the depot sends an empty container, the carried inventory count must stay non-negative.
 [true*] forall cnt: Int .
   [c_send_empty_ctn_to_transport___count___1_to_transport__empty_ctn_received(order_id(1), cnt)] val(cnt >= 0)
