@@ -7,9 +7,9 @@ act
 proc
   process_cb(oid: OrderId, status: Int) = proc_activity_declare(oid, status);
   process_1c1qq3r(oid: OrderId) = delta;
-  env_recv_flow_declaration_send(oid: OrderId, status: Int) = r_declaration(oid) . delta;
-  env_send_flow_doc_status_return(oid: OrderId, status: Int) = s_document_status(oid) . delta;
-  env_recv_flow_supplement_send(oid: OrderId, status: Int) = r_supplement(oid) . delta;
+  env_recv_flow_declaration_send(oid: OrderId, status: Int) = r_declaration(oid) . env_recv_flow_declaration_send(oid, status);
+  env_send_flow_doc_status_return(oid: OrderId, status: Int) = s_document_status(oid) . env_send_flow_doc_status_return(oid, status);
+  env_recv_flow_supplement_send(oid: OrderId, status: Int) = r_supplement(oid) . env_recv_flow_supplement_send(oid, status);
   proc_activity_declare(oid: OrderId, status: Int) = s_declaration(oid) . r_document_status(oid) . ((status == 1) -> tau . declaration_accepted(oid) . process_completed(oid) + (status == 0) -> tau . s_supplement(oid) . proc_activity_declare(oid, status));
 
 init

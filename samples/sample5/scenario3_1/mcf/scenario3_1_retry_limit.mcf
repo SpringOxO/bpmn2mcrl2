@@ -1,0 +1,2 @@
+[true*] forall oid: OrderId, retry_count: Int . 
+  val(retry_count > 3) => [action_declare_to_customs(oid, retry_count)] false
