@@ -415,7 +415,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         if src in part_to_proc and src not in node_to_proc:
             env_proc_name = f"env_send_{flow_id}"
             sync_state["extra_procs"].append(
-                f"  {env_proc_name}(oid: OrderId{params_def}) = s_{m_name}(oid) . {env_proc_name}(oid{params_call(None, vars_list)});"
+                f"  {env_proc_name}(oid: OrderId{params_def}) = s_{m_name}(oid{msg_var_args}) . {env_proc_name}(oid{params_call(None, vars_list)});"
             )
             sync_state["init_procs"].append(f"{env_proc_name}(order_id(1){params_init})")
             sync_state["warnings"].append(
@@ -425,7 +425,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         if tgt in part_to_proc and tgt not in node_to_proc:
             env_proc_name = f"env_recv_{flow_id}"
             sync_state["extra_procs"].append(
-                f"  {env_proc_name}(oid: OrderId{params_def}) = r_{m_name}(oid) . {env_proc_name}(oid{params_call(None, vars_list)});"
+                f"  {env_proc_name}(oid: OrderId{params_def}) = r_{m_name}(oid{msg_var_args}) . {env_proc_name}(oid{params_call(None, vars_list)});"
             )
             sync_state["init_procs"].append(f"{env_proc_name}(order_id(1){params_init})")
             sync_state["warnings"].append(
