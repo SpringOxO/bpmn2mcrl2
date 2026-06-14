@@ -4,7 +4,9 @@
     <bpmn:participant id="Participant_Depot" name="Depot" processRef="Process_DepotInventory" />
     <bpmn:participant id="Participant_Environment" name="Environment (SA / Transport / CT)" processRef="Process_Environment" />
     <bpmn:messageFlow id="Flow_0d09yx1" sourceRef="Env_SendAskDepot" targetRef="Event_0v0liaj" />
-    <bpmn:messageFlow id="Flow_0gophdd" sourceRef="Activity_15hjzys" targetRef="Env_ReceiveEmptyCtn" />
+    <bpmn:messageFlow id="Flow_0gophdd" sourceRef="Activity_15hjzys" targetRef="Env_ReceiveEmptyCtn">
+      <bpmn:documentation>mcrl2:payload Container_Count</bpmn:documentation>
+    </bpmn:messageFlow>
     <bpmn:messageFlow id="Flow_0jgf3p7" sourceRef="Activity_0516o4k" targetRef="Env_ReceiveArrivalInfo" />
     <bpmn:messageFlow id="Flow_1b8ce7l" sourceRef="Env_SendOutboundReceipt" targetRef="Event_0n0ighc" />
     <bpmn:messageFlow id="Flow_01n34zt" sourceRef="Activity_10s7b1e" targetRef="Env_ReceiveOutboundCtn" />

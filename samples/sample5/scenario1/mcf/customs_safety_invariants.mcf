@@ -1,0 +1,10 @@
+% Data-bound Safety Invariants for Customs Inspection (Scenario 1)
+% 使用 pbes2bool -s2 验证
+%
+% Safety Invariant 1: 放行通知发生时，货物类型必定为合规类型 (1, 2, 3)
+[true*] forall ct: Int .
+  [c_pass_notice(order_id(1), ct)] val(ct == 1 || ct == 2 || ct == 3)
+&&
+% Safety Invariant 2: 扣留通知发生时，货物类型必定为非合规类型
+[true*] forall ct: Int .
+  [c_fail_notice(order_id(1), ct)] val(ct != 1 && ct != 2 && ct != 3)

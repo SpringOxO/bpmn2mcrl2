@@ -1,0 +1,10 @@
+% Data-bound Safety Invariants for Owner Payment Reconciliation
+% 使用 pbes2bool -s2 策略验证
+%
+% Safety Invariant 1: 结清通知发生时，已付金额必定 >= 应付金额
+[true*] forall due: Int . forall paid: Int .
+  [c_payment_settled_notice(order_id(1), due, paid)] val(paid >= due)
+&&
+% Safety Invariant 2: 催缴余额发生时，已付金额必定 < 应付金额
+[true*] forall due: Int . forall paid: Int .
+  [c_balance_reminder(order_id(1), due, paid)] val(paid < due)

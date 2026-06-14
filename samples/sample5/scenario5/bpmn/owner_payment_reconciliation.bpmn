@@ -3,10 +3,18 @@
   <bpmn:collaboration id="Collaboration_OwnerPaymentReconciliation">
     <bpmn:participant id="Participant_Owner" name="Owner" processRef="Process_OwnerPaymentReconciliation" />
     <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_EnvironmentFinance" />
-    <bpmn:messageFlow id="Flow_Statement" name="amount statement" sourceRef="Env_SendAmountStatement" targetRef="Event_ReceiveAmountStatement" />
-    <bpmn:messageFlow id="Flow_Reminder" name="balance reminder" sourceRef="Activity_RemindBalance" targetRef="Env_ReceiveReminder" />
-    <bpmn:messageFlow id="Flow_AdditionalPayment" name="additional payment" sourceRef="Env_SendAdditionalPayment" targetRef="Event_ReceiveAdditionalPayment" />
-    <bpmn:messageFlow id="Flow_SettledNotice" name="payment settled notice" sourceRef="Activity_NotifySettled" targetRef="Env_ReceiveSettledNotice" />
+    <bpmn:messageFlow id="Flow_Statement" name="amount statement" sourceRef="Env_SendAmountStatement" targetRef="Event_ReceiveAmountStatement">
+      <bpmn:documentation>mcrl2:payload Amount_Due, Amount_Paid, Current_Payment</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="Flow_Reminder" name="balance reminder" sourceRef="Activity_RemindBalance" targetRef="Env_ReceiveReminder">
+      <bpmn:documentation>mcrl2:payload Amount_Due, Amount_Paid</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="Flow_AdditionalPayment" name="additional payment" sourceRef="Env_SendAdditionalPayment" targetRef="Event_ReceiveAdditionalPayment">
+      <bpmn:documentation>mcrl2:payload Current_Payment</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="Flow_SettledNotice" name="payment settled notice" sourceRef="Activity_NotifySettled" targetRef="Env_ReceiveSettledNotice">
+      <bpmn:documentation>mcrl2:payload Amount_Due, Amount_Paid</bpmn:documentation>
+    </bpmn:messageFlow>
   </bpmn:collaboration>
   <bpmn:process id="Process_OwnerPaymentReconciliation" name="Owner payment reconciliation" isExecutable="false">
     <bpmn:dataObject id="DataObject_AmountDue" name="Amount_Due" />

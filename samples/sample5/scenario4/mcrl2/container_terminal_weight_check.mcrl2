@@ -1,0 +1,20 @@
+% Auto-generated mCRL2 with Collaboration & Parallel Support & Timed Events & Data
+sort OrderId = struct order_id(pid: Pos);
+
+act
+  c_weight_data_from_environment, r_weight_data_from_environment, s_weight_data_from_environment : OrderId # Int;
+  c_reject_loading_warning_to_environment, r_reject_loading_warning_to_environment, s_reject_loading_warning_to_environment : OrderId # Int;
+  load_ctn, loaded, loading_rejected, safety_weighing : OrderId;
+
+proc
+  process_ct_weight_check(oid: OrderId, weight: Int) = r_weight_data_from_environment(oid, weight) . safety_weighing(oid) . ((weight <= 5) -> tau . load_ctn(oid) . loaded(oid) + (weight > 5) -> tau . s_reject_loading_warning_to_environment(oid, weight) . loading_rejected(oid));
+  process_environment(oid: OrderId, weight: Int) = delta;
+  env_send_messageflow_weightdata(oid: OrderId, weight: Int) = s_weight_data_from_environment(oid, weight) . delta;
+  env_recv_messageflow_rejectloading(oid: OrderId, weight: Int) = r_reject_loading_warning_to_environment(oid, weight) . delta;
+
+init
+  allow({c_reject_loading_warning_to_environment, c_weight_data_from_environment, load_ctn, loaded, loading_rejected, safety_weighing},
+    comm({s_reject_loading_warning_to_environment | r_reject_loading_warning_to_environment -> c_reject_loading_warning_to_environment, s_weight_data_from_environment | r_weight_data_from_environment -> c_weight_data_from_environment},
+      env_send_messageflow_weightdata(order_id(1), 0) || env_recv_messageflow_rejectloading(order_id(1), 0) || (sum weight: Int . ((weight >= 0 && weight <= 10)) -> process_ct_weight_check(order_id(1), weight)) || (sum weight: Int . ((weight >= 0 && weight <= 10)) -> process_environment(order_id(1), weight))
+    )
+  );

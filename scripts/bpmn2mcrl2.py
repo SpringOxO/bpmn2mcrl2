@@ -411,6 +411,7 @@ def convert_bpmn_to_mcrl2(bpmn_filepath, output_filepath, enable_timer=True):
         if tgt in node_to_proc:
             sync_state["exact_msg_nodes"].setdefault(tgt, []).append(("r", m_name))
 
+        msg_var_args = "".join([f", {v}" for v in m_vars])
         if src in part_to_proc and src not in node_to_proc:
             env_proc_name = f"env_send_{flow_id}"
             sync_state["extra_procs"].append(
