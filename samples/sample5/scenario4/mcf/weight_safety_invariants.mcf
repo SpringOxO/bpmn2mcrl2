@@ -1,0 +1,10 @@
+% Data-bound Safety Invariants for Container Terminal Weight Check (Scenario 4)
+% 使用 pbes2bool -s2 验证
+%
+% Safety Invariant 1: 接收的重量数据必定合法 (>= 0)
+[true*] forall w: Int .
+  [c_weight_data_from_environment(order_id(1), w)] val(w >= 0)
+&&
+% Safety Invariant 2: 拒绝装载通知发生时，重量必定 > 5
+[true*] forall w: Int .
+  [c_reject_loading_warning_to_environment(order_id(1), w)] val(w > 5)

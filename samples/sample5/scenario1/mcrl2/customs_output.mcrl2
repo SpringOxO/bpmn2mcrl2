@@ -3,11 +3,13 @@ sort OrderId = struct order_id(pid: Pos);
 
 act
   c_submit_docs, r_submit_docs, s_submit_docs : OrderId # Int;
-  c_fail_notice, c_pass_notice, endevent_envfail, endevent_envpass, endevent_fail, endevent_pass, gateway_envwait, inspect_cargo, r_fail_notice, r_pass_notice, s_fail_notice, s_pass_notice : OrderId;
+  c_pass_notice, r_pass_notice, s_pass_notice : OrderId # Int;
+  c_fail_notice, r_fail_notice, s_fail_notice : OrderId # Int;
+  endevent_envfail, endevent_envpass, endevent_fail, endevent_pass, gateway_envwait, inspect_cargo : OrderId;
 
 proc
-  process_environment(oid: OrderId, CargoType: Int) = s_submit_docs(oid, CargoType) . gateway_envwait(oid) . (r_fail_notice(oid) . endevent_envfail(oid) + r_pass_notice(oid) . endevent_envpass(oid));
-  process_customs(oid: OrderId, CargoType: Int) = r_submit_docs(oid, CargoType) . inspect_cargo(oid) . ((CargoType == 1 || CargoType == 2 || CargoType == 3) -> tau . s_pass_notice(oid) . endevent_pass(oid) + (CargoType != 1 && CargoType != 2 && CargoType != 3) -> tau . s_fail_notice(oid) . endevent_fail(oid));
+  process_environment(oid: OrderId, CargoType: Int) = s_submit_docs(oid, CargoType) . gateway_envwait(oid) . (r_fail_notice(oid, CargoType) . endevent_envfail(oid) + r_pass_notice(oid, CargoType) . endevent_envpass(oid));
+  process_customs(oid: OrderId, CargoType: Int) = r_submit_docs(oid, CargoType) . inspect_cargo(oid) . ((CargoType == 1 || CargoType == 2 || CargoType == 3) -> tau . s_pass_notice(oid, CargoType) . endevent_pass(oid) + (CargoType != 1 && CargoType != 2 && CargoType != 3) -> tau . s_fail_notice(oid, CargoType) . endevent_fail(oid));
 
 
 init

@@ -2,19 +2,23 @@
 sort OrderId = struct order_id(pid: Pos);
 
 act
-  c_additional_payment, c_amount_statement, c_balance_reminder, c_payment_settled_notice, env_end, pay_freight_charges, payment_settled, r_additional_payment, r_amount_statement, r_balance_reminder, r_payment_settled_notice, record_amount_statement, s_additional_payment, s_amount_statement, s_balance_reminder, s_payment_settled_notice : OrderId;
+  c_amount_statement, r_amount_statement, s_amount_statement : OrderId # Int # Int # Int;
+  c_balance_reminder, r_balance_reminder, s_balance_reminder : OrderId # Int # Int;
+  c_additional_payment, r_additional_payment, s_additional_payment : OrderId # Int;
+  c_payment_settled_notice, r_payment_settled_notice, s_payment_settled_notice : OrderId # Int # Int;
+  env_end, pay_freight_charges, payment_settled, record_amount_statement : OrderId;
 
 proc
-  process_ownerpaymentreconciliation(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = r_amount_statement(oid) . record_amount_statement(oid) . cont_activity_recordstatement(oid, 3, 0, 1);
-  process_environmentfinance(oid: OrderId) = s_amount_statement(oid) . proc_env_gateway_waitowner(oid);
-  cont_activity_1p1hn9r(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = ((Amount_Paid >= Amount_Due) -> tau . s_payment_settled_notice(oid) . payment_settled(oid) + (Amount_Paid < Amount_Due) -> tau . s_balance_reminder(oid) . r_additional_payment(oid) . proc_activity_1p1hn9r(oid, Amount_Due, Amount_Paid, Current_Payment));
+  process_ownerpaymentreconciliation(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = r_amount_statement(oid, Amount_Due, Amount_Paid, Current_Payment) . record_amount_statement(oid) . cont_activity_recordstatement(oid, 3, 0, 1);
+  process_environmentfinance(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = s_amount_statement(oid, Amount_Due, Amount_Paid, Current_Payment) . proc_env_gateway_waitowner(oid, Amount_Due, Amount_Paid, Current_Payment);
+  cont_activity_1p1hn9r(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = ((Amount_Paid >= Amount_Due) -> tau . s_payment_settled_notice(oid, Amount_Due, Amount_Paid) . payment_settled(oid) + (Amount_Paid < Amount_Due) -> tau . s_balance_reminder(oid, Amount_Due, Amount_Paid) . r_additional_payment(oid, Current_Payment) . proc_activity_1p1hn9r(oid, Amount_Due, Amount_Paid, Current_Payment));
   proc_activity_1p1hn9r(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = pay_freight_charges(oid) . cont_activity_1p1hn9r(oid, Amount_Due, Amount_Paid + Current_Payment, Current_Payment);
   cont_activity_recordstatement(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = proc_activity_1p1hn9r(oid, Amount_Due, Amount_Paid, Current_Payment);
-  proc_env_gateway_waitowner(oid: OrderId) = (tau . r_balance_reminder(oid) . s_additional_payment(oid) . proc_env_gateway_waitowner(oid) + tau . r_payment_settled_notice(oid) . env_end(oid));
+  proc_env_gateway_waitowner(oid: OrderId, Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int) = (tau . r_balance_reminder(oid, Amount_Due, Amount_Paid) . s_additional_payment(oid, Current_Payment) . proc_env_gateway_waitowner(oid, Amount_Due, Amount_Paid, Current_Payment) + tau . r_payment_settled_notice(oid, Amount_Due, Amount_Paid) . env_end(oid));
 
 init
   allow({c_additional_payment, c_amount_statement, c_balance_reminder, c_payment_settled_notice, env_end, pay_freight_charges, payment_settled, record_amount_statement},
     comm({s_additional_payment | r_additional_payment -> c_additional_payment, s_amount_statement | r_amount_statement -> c_amount_statement, s_balance_reminder | r_balance_reminder -> c_balance_reminder, s_payment_settled_notice | r_payment_settled_notice -> c_payment_settled_notice},
-      (sum Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int . ((Amount_Due >= 0 && Amount_Due <= 10) && (Amount_Paid >= 0 && Amount_Paid <= 10) && (Current_Payment >= 0 && Current_Payment <= 10)) -> process_ownerpaymentreconciliation(order_id(1), Amount_Due, Amount_Paid, Current_Payment)) || process_environmentfinance(order_id(1))
+      (sum Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int . ((Amount_Due >= 0 && Amount_Due <= 10) && (Amount_Paid >= 0 && Amount_Paid <= 10) && (Current_Payment >= 0 && Current_Payment <= 10)) -> process_ownerpaymentreconciliation(order_id(1), Amount_Due, Amount_Paid, Current_Payment)) || (sum Amount_Due: Int, Amount_Paid: Int, Current_Payment: Int . ((Amount_Due >= 0 && Amount_Due <= 10) && (Amount_Paid >= 0 && Amount_Paid <= 10) && (Current_Payment >= 0 && Current_Payment <= 10)) -> process_environmentfinance(order_id(1), Amount_Due, Amount_Paid, Current_Payment))
     )
   );

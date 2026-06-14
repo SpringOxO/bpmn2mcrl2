@@ -3,8 +3,12 @@
   <bpmn:collaboration id="Collaboration_ContainerTerminalWeightCheck">
     <bpmn:participant id="Participant_CT" name="Container Terminal" processRef="Process_CT_Weight_Check" />
     <bpmn:participant id="Participant_Environment" name="Environment" processRef="Process_Environment" />
-    <bpmn:messageFlow id="MessageFlow_WeightData" name="weight data from Environment" sourceRef="Participant_Environment" targetRef="Event_WeightDataReceived" />
-    <bpmn:messageFlow id="MessageFlow_RejectLoading" name="reject loading warning to Environment" sourceRef="Activity_SendRejectWarning" targetRef="Participant_Environment" />
+    <bpmn:messageFlow id="MessageFlow_WeightData" name="weight data from Environment" sourceRef="Participant_Environment" targetRef="Event_WeightDataReceived">
+      <bpmn:documentation>mcrl2:payload weight</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MessageFlow_RejectLoading" name="reject loading warning to Environment" sourceRef="Activity_SendRejectWarning" targetRef="Participant_Environment">
+      <bpmn:documentation>mcrl2:payload weight</bpmn:documentation>
+    </bpmn:messageFlow>
   </bpmn:collaboration>
   <bpmn:process id="Process_CT_Weight_Check" name="Container Terminal Weight Check" isExecutable="true">
     <bpmn:startEvent id="Event_Start" name="CTN ready for terminal">

@@ -1,0 +1,6 @@
+% Data-bound Safety Invariants for Customs Declaration (Scenario 3)
+% 使用 pbes2bool -s2 验证
+%
+% Safety Invariant: Document_Status 消息携带的状态值必定合法 (0 或 1)
+[true*] forall st: Int .
+  [c_document_status(order_id(1), st)] val(st == 0 || st == 1)

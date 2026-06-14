@@ -6,8 +6,12 @@
     <bpmn:messageFlow id="Flow_msg_submit" name="submit docs" sourceRef="Task_Submit" targetRef="StartEvent_Customs">
       <bpmn:documentation>mcrl2:payload CargoType</bpmn:documentation>
     </bpmn:messageFlow>
-    <bpmn:messageFlow id="Flow_msg_pass" name="pass notice" sourceRef="Task_Release" targetRef="CatchEvent_Pass" />
-    <bpmn:messageFlow id="Flow_msg_fail" name="fail notice" sourceRef="Task_Detain" targetRef="CatchEvent_Fail" />
+    <bpmn:messageFlow id="Flow_msg_pass" name="pass notice" sourceRef="Task_Release" targetRef="CatchEvent_Pass">
+      <bpmn:documentation>mcrl2:payload CargoType</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="Flow_msg_fail" name="fail notice" sourceRef="Task_Detain" targetRef="CatchEvent_Fail">
+      <bpmn:documentation>mcrl2:payload CargoType</bpmn:documentation>
+    </bpmn:messageFlow>
   </bpmn:collaboration>
   <bpmn:process id="Process_Environment" isExecutable="false">
     <bpmn:sequenceFlow id="Flow_E6" sourceRef="CatchEvent_Fail" targetRef="EndEvent_EnvFail" />

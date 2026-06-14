@@ -4,7 +4,9 @@
     <bpmn:participant id="Participant_CB" name="Customs Broker" processRef="Process_CB" />
     <bpmn:participant id="Participant_044r31t" name="Environment" processRef="Process_1c1qq3r" />
     <bpmn:messageFlow id="Flow_declaration_send" name="Declaration" sourceRef="Activity_declare" targetRef="Participant_044r31t" />
-    <bpmn:messageFlow id="Flow_doc_status_return" name="Document_Status" sourceRef="Participant_044r31t" targetRef="Event_recv_status" />
+    <bpmn:messageFlow id="Flow_doc_status_return" name="Document_Status" sourceRef="Participant_044r31t" targetRef="Event_recv_status">
+      <bpmn:documentation>mcrl2:payload status</bpmn:documentation>
+    </bpmn:messageFlow>
     <bpmn:messageFlow id="Flow_supplement_send" name="Supplement" sourceRef="Activity_supplement" targetRef="Participant_044r31t" />
   </bpmn:collaboration>
   <bpmn:process id="Process_CB" isExecutable="true">
